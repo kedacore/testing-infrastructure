@@ -1,0 +1,51 @@
+name: 'Terraform'
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency: terraform
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      TF_VAR_azure_location: ${{ secrets.AZURE_LOCATION }}
+      TF_VAR_azure_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+      GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+      GITHUB_OWNER: kedacore
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+
+    - name: Terraform Init
+      working-directory: infrastructure
+      run: |
+        terraform init \
+        -backend-config=storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME}} \
+        -backend-config=container_name=${{ secrets.BACKEND_STORAGE_CONTAINER_NAME}} \
+        -backend-config=key=${{ secrets.BACKEND_STORAGE_KEY}} \
+        -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}} \
+        -backend-config=subscription_id="$ARM_SUBSCRIPTION_ID" \
+        -backend-config=tenant_id="$ARM_TENANT_ID" \
+        -backend-config=client_id="$ARM_CLIENT_ID" \
+        -backend-config=client_secret="$ARM_CLIENT_SECRET"
+
+    - name: Terraform Plan
+      working-directory: infrastructure
+      run: terraform plan -out=plan.tfplan
+
+    - name: Terraform Apply
+      working-directory: infrastructure
+      run: terraform apply -input=false -auto-approve plan.tfplan
