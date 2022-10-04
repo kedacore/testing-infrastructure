@@ -21,6 +21,7 @@ module "azure_event_hub_namespace" {
 
 module "github_secrets" {
   source = "./modules/github/secrets"
+  repository = var.repository
   secrets = [
     {
       name  = "TF_AZURE_EVENTHBUS_MANAGEMENT_CONNECTION_STRING"

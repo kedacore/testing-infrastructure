@@ -8,7 +8,7 @@ terraform {
 }
 
 data "github_repository" "repo" {
-  full_name = "kedacore/keda"
+  full_name = var.repository
 }
 
 resource "github_actions_secret" "secrets" {

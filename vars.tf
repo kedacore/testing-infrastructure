@@ -13,3 +13,9 @@ variable "unique_project_name" {
   type        = string
   description = "Value to make unique every resource name generated"
 }
+
+variable "repository" {
+  default     = "kedacore/keda"
+  type        = string
+  description = "Repository where secrets will be created/updated"
+}
