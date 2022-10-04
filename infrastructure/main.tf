@@ -23,7 +23,7 @@ module "github_secrets" {
   source = "./modules/github/secrets"
   secrets = [
     {
-      name  = "TF_EVENT_HUB_NAMESPACE_CONNECTIONSTRING"
+      name  = "TF_AZURE_EVENTHBUS_MANAGEMENT_CONNECTION_STRING"
       value = module.azure_event_hub_namespace.event_hub_namespace_manage_connectionstring
     },
   ]
