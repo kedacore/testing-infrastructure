@@ -41,7 +41,7 @@ module "github_secrets" {
       value = module.azure_storage_account.storage_account_connectionstring
     },
     {
-      name  = "TF_AZURE_STORAGE_CONNECTION_STRING_2"
+      name  = "TF_AZURE_STORAGE_CONNECTION_STRING_3"
       value = module.azure_storage_account.storage_account_connectionstring
     },
   ]
