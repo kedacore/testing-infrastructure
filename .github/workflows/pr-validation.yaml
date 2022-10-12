@@ -31,7 +31,7 @@ jobs:
         gh pr checkout ${{ github.event.number }}
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
+      uses: hashicorp/setup-terraform@v2.0.2
 
     - name: Terraform Format
       id: fmt
