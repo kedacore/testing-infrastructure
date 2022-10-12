@@ -5,6 +5,11 @@ on:
 
 concurrency: terraform
 
+permissions:
+  id-token: write
+  contents: read
+  pull_request: read
+
 jobs:
   terraform:
     name: 'Terraform'
