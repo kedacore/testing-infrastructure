@@ -36,9 +36,19 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2.0.2
 
+    - name: Setup TFLint
+      uses: terraform-linters/setup-tflint@v1
+
     - name: Terraform Format
       id: fmt
       run: terraform fmt -recursive -check
+      continue-on-error: true
+
+    - name: Init TFLint
+      run: tflint --init
+
+    - name: Run TFLint
+      run: tflint -f compact
 
     - name: Terraform Init
       id: init
@@ -59,7 +69,7 @@ jobs:
 
     - name: Terraform Plan
       id: plan
-      run: terraform plan -input=false
+      run: terraform plan -no-color -input=false
       continue-on-error: true
 
     - name: Update Pull Request
@@ -67,11 +77,12 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const output = `#### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+          const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+          #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
           #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
           #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
 
-          You can find the whole execution logs here: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
+          You can check the whole execution logs here: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
 
           *Pushed by: @${{ github.actor }}*`;
 
