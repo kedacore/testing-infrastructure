@@ -8,7 +8,7 @@ concurrency: terraform
 permissions:
   id-token: write
   contents: read
-  pull_request: read
+  pull-requests: read
 
 jobs:
   terraform:
