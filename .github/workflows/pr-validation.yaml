@@ -20,9 +20,6 @@ jobs:
       GITHUB_OWNER: kedacore
 
     steps:
-    - name: Hide previous reports
-      uses: int128/hide-comment-action@v1
-  
     - name: Checkout
       uses: actions/checkout@v3
 
@@ -72,26 +69,44 @@ jobs:
       run: terraform plan -no-color -input=false
       continue-on-error: true
 
-    - name: Update Pull Request
+    - name: Create the plan summary
       uses: actions/github-script@v6
+      if: always()
+      id: summary
+      env:
+        PLAN: '${{ steps.plan.outputs.stdout }}'
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
+          // 1. Prep the output
           const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
           #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
           #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+          <details><summary>Validation Output</summary>
+          \`\`\`\n
+          ${{ steps.validate.outputs.stdout }}
+          \`\`\`
+          </details>
           #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+          
+          <details><summary>Show Plan</summary>
+          
+          \`\`\`\n
+          ${process.env.PLAN}
+          \`\`\`
+          
+          </details>
+          
+          *Pusher: @${{ github.actor }}*`;
+          
+          // 2. Set the output variable
+          const fs = require('fs');
+          fs.writeFileSync('${{ env.tf_actions_working_dir }}/summary.md', output);
+          core.setOutput('summary', output);
 
-          You can check the whole execution logs here: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
-
-          *Pushed by: @${{ github.actor }}*`;
-
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: output
-          })
+    - name: Write the step summary
+      if: always()
+      run: cat summary.md >> $GITHUB_STEP_SUMMARY
 
     - name: Terraform Plan Status
       if: steps.plan.outcome == 'failure'
