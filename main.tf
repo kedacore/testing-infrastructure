@@ -1,6 +1,4 @@
 locals {
-  event_hub_name = "${var.unique_project_name}-event-hub-namespace"
-
   tags = {
     Project     = "KEDA"
     Environment = "e2e"
