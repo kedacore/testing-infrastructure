@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_USE_OIDC: true
       TF_VAR_azure_location: ${{ secrets.AZURE_LOCATION }}
       TF_VAR_azure_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
       GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -28,7 +28,14 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-      
+
+    - name: Log in to Azure using OIDC
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2.0.2
 
@@ -38,11 +45,7 @@ jobs:
         -backend-config=storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME}} \
         -backend-config=container_name=${{ secrets.BACKEND_STORAGE_CONTAINER_NAME}} \
         -backend-config=key=${{ secrets.BACKEND_STORAGE_KEY}} \
-        -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}} \
-        -backend-config=subscription_id="$ARM_SUBSCRIPTION_ID" \
-        -backend-config=tenant_id="$ARM_TENANT_ID" \
-        -backend-config=client_id="$ARM_CLIENT_ID" \
-        -backend-config=client_secret="$ARM_CLIENT_SECRET"
+        -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}}
 
     - name: Terraform Plan
       run: terraform plan -out=plan.tfplan
