@@ -5,6 +5,16 @@ locals {
   }
 }
 
+module "azure_data_explorer" {
+  source              = "./modules/azure/data-explorer"
+  resource_group_name = var.azure_resource_group_name
+  location            = var.azure_location
+
+  unique_project_name = var.unique_project_name
+
+  tags = local.tags
+}
+
 module "azure_event_hub_namespace" {
   source              = "./modules/azure/event-hub-namespace"
   resource_group_name = var.azure_resource_group_name
@@ -75,6 +85,14 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_SERVICE_BUS_CONNECTION_STRING"
       value = module.azure_servicebus_namespace.connection_string
+    },
+    {
+      name  = "TF_AZURE_DATA_EXPLORER_DB"
+      value = module.azure_data_explorer.database
+    },
+    {
+      name  = "TF_AZURE_DATA_EXPLORER_ENDPOINT"
+      value = module.azure_data_explorer.uri
     },
   ]
 }
