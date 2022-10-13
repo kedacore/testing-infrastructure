@@ -92,7 +92,7 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_DATA_EXPLORER_ENDPOINT"
-      value = module.azure_data_explorer.uri
+      value = module.azure_data_explorer.endpoint
     },
   ]
 }
