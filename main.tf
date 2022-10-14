@@ -8,7 +8,7 @@ locals {
 // ====== AZURE ======
 
 module "azuread_applications" {
-  source = "./modules/azure/aad-applications"
+  source       = "./modules/azure/aad-applications"
   keda_sp_name = var.keda_sp_name
 }
 
@@ -49,6 +49,26 @@ module "azure_aks_nightly" {
   workload_identity_service_principals = [
     module.azuread_applications.identity_1,
     module.azuread_applications.identity_2
+  ]
+
+  tags = local.tags
+}
+
+module "azure_key_vault" {
+  source              = "./modules/azure/key-vault"
+  resource_group_name = var.azure_resource_group_name
+  location            = var.azure_location
+
+  unique_project_name = var.unique_project_name
+
+  access_object_id = module.azuread_applications.keda_sp_object_id
+  tenant_id        = module.azure_current_client.tenant_id
+
+  secrets = [
+    {
+      name  = "E2E-Storage-ConnectionString"
+      value = module.azure_storage_account.connection_string
+    },
   ]
 
   tags = local.tags
@@ -172,6 +192,10 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
       value = module.azure_current_client.subscription_id
+    },
+    {
+      name  = "TF_AZURE_KEYVAULT_URI"
+      value = module.azure_key_vault.vault_uri
     },
   ]
 }

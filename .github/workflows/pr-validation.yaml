@@ -21,6 +21,7 @@ jobs:
       ARM_USE_OIDC: true
       TF_VAR_azure_location: ${{ secrets.AZURE_LOCATION }}
       TF_VAR_azure_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+      TF_VAR_keda_sp_name: ${{ secrets.KEDA_SP_NAME }}
       GITHUB_TOKEN: ${{ secrets.GH_PAT }}
       GITHUB_OWNER: kedacore
 
