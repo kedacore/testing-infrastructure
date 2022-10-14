@@ -18,6 +18,11 @@ variable "tags" {
   description = "Tags to apply on every resource"
 }
 
+variable "access_app_id" {
+  type        = string
+  description = "AppId with access to this key vault"
+}
+
 variable "access_object_id" {
   type        = string
   description = "ObjectId with access to this key vault"
