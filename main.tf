@@ -61,8 +61,7 @@ module "azure_key_vault" {
 
   unique_project_name = var.unique_project_name
 
-  access_app_id    = module.azuread_applications.keda_sp_app_id
-  access_object_id = module.azuread_applications.keda_sp_object_id
+  access_object_id = module.azure_current_client.object_id
   tenant_id        = module.azure_current_client.tenant_id
 
   secrets = [

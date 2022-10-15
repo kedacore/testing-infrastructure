@@ -13,7 +13,3 @@ output "keda_sp_secret" {
 output "keda_sp_app_id" {
   value = data.azuread_application.keda_sp.application_id
 }
-
-output "keda_sp_object_id" {
-  value = data.azuread_application.keda_sp.object_id
-}
