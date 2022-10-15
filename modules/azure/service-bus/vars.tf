@@ -17,3 +17,9 @@ variable "tags" {
   type        = map(any)
   description = "Tags to apply on every resource"
 }
+
+variable "service_bus_admin_identities" {
+  type        = list(any)
+  description = "Azure Service Bus Data Owner identities"
+  default     = []
+}

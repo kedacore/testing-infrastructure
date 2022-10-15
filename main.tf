@@ -105,6 +105,9 @@ module "azure_servicebus_namespace" {
   resource_group_name = var.azure_resource_group_name
   location            = var.azure_location
   unique_project_name = var.unique_project_name
+  service_bus_admin_identities = [
+    module.azuread_applications.identity_1
+  ]
 
   tags = local.tags
 }
@@ -114,7 +117,9 @@ module "azure_servicebus_namespace_alternative" {
   resource_group_name = var.azure_resource_group_name
   location            = var.azure_location
   unique_project_name = "${var.unique_project_name}-alt"
-
+  service_bus_admin_identities = [
+    module.azuread_applications.identity_2
+  ]
   tags = local.tags
 }
 
@@ -164,7 +169,7 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_SERVICE_BUS_ALTERNATIVE_CONNECTION_STRING"
       value = module.azure_servicebus_namespace_alternative.connection_string
-    },    
+    },
     {
       name  = "TF_AZURE_DATA_EXPLORER_DB"
       value = module.azure_data_explorer.database
