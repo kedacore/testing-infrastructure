@@ -79,6 +79,11 @@ module "azure_data_explorer" {
 
   unique_project_name = var.unique_project_name
 
+  admin_principal_ids = [
+    module.azuread_applications.keda_app.application_id
+  ]
+  admin_tenant_id = data.azurerm_client_config.current.tenant_id
+
   tags = local.tags
 }
 
@@ -191,7 +196,7 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_SP_KEY"
-      value = module.azuread_applications.keda_sp_secret
+      value = module.azuread_applications.keda_app_secret
     },
     {
       name  = "TF_AZURE_SP_TENANT"

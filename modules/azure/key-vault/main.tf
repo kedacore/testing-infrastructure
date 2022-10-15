@@ -35,9 +35,9 @@ resource "azurerm_key_vault" "vault" {
   tags = var.tags
 }
 
-# resource "azurerm_key_vault_secret" "secrets" {
-#   count        = length(var.secrets)
-#   name         = var.secrets[count.index].name
-#   value        = var.secrets[count.index].value
-#   key_vault_id = azurerm_key_vault.vault.id
-# }
+resource "azurerm_key_vault_secret" "secrets" {
+  count        = length(var.secrets)
+  name         = var.secrets[count.index].name
+  value        = var.secrets[count.index].value
+  key_vault_id = azurerm_key_vault.vault.id
+}

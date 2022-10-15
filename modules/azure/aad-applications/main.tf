@@ -10,9 +10,9 @@ data "azuread_service_principal" "keda_sp" {
   application_id = data.azuread_application.keda_app.application_id
 }
 
-resource "azuread_service_principal_password" "keda_sp_secret" {
-  display_name         = "e2e tests secret"
-  service_principal_id = data.azuread_service_principal.keda_sp.id
+resource "azuread_application_password" "keda_app_secret" {
+  display_name          = "e2e tests secret"
+  application_object_id = data.azuread_application.keda_app.id
 }
 
 resource "azuread_application" "keda_identity_1" {

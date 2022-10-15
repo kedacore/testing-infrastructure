@@ -14,8 +14,12 @@ output "identity_2_sp" {
   value = azuread_service_principal.keda_identity_2_sp
 }
 
-output "keda_sp_secret" {
-  value = azuread_service_principal_password.keda_sp_secret.value
+output "keda_app" {
+  value = data.azuread_application.keda_app
+}
+
+output "keda_app_secret" {
+  value = azuread_application_password.keda_app_secret.value
 }
 
 output "keda_sp" {
