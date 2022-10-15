@@ -109,6 +109,15 @@ module "azure_servicebus_namespace" {
   tags = local.tags
 }
 
+module "azure_servicebus_namespace_alternative" {
+  source              = "./modules/azure/service-bus"
+  resource_group_name = var.azure_resource_group_name
+  location            = var.azure_location
+  unique_project_name = "${var.unique_project_name}-alt"
+
+  tags = local.tags
+}
+
 module "azure_storage_account" {
   source              = "./modules/azure/storage-account"
   resource_group_name = var.azure_resource_group_name
@@ -152,6 +161,10 @@ module "github_secrets" {
       name  = "TF_AZURE_SERVICE_BUS_CONNECTION_STRING"
       value = module.azure_servicebus_namespace.connection_string
     },
+    {
+      name  = "TF_AZURE_SERVICE_BUS_ALTERNATIVE_CONNECTION_STRING"
+      value = module.azure_servicebus_namespace_alternative.connection_string
+    },    
     {
       name  = "TF_AZURE_DATA_EXPLORER_DB"
       value = module.azure_data_explorer.database
