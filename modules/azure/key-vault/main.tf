@@ -28,7 +28,8 @@ resource "azurerm_key_vault" "vault" {
       "Get",
       "Set",
       "List",
-      "Delete"
+      "Delete",
+      "Recover"
     ]
   }
 
