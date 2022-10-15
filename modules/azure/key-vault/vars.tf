@@ -18,16 +18,6 @@ variable "tags" {
   description = "Tags to apply on every resource"
 }
 
-variable "access_object_id" {
-  type        = string
-  description = "ObjectId with access to this key vault"
-}
-
-variable "tenant_id" {
-  type        = string
-  description = "TenantId for this key vault"
-}
-
 variable "secrets" {
   type        = list(any)
   description = "Collection of secrets (key-value) to be created in Key Vault"

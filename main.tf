@@ -7,13 +7,11 @@ locals {
 
 // ====== AZURE ======
 
+data "azurerm_client_config" "current" {}
+
 module "azuread_applications" {
   source       = "./modules/azure/aad-applications"
   keda_sp_name = var.keda_sp_name
-}
-
-module "azure_current_client" {
-  source = "./modules/azure/client-config"
 }
 
 module "azure_aks_pr" {
@@ -60,9 +58,6 @@ module "azure_key_vault" {
   location            = var.azure_location
 
   unique_project_name = var.unique_project_name
-
-  access_object_id = module.azure_current_client.object_id
-  tenant_id        = module.azure_current_client.tenant_id
 
   secrets = [
     {
@@ -179,19 +174,19 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_SP_TENANT"
-      value = module.azure_current_client.tenant_id
+      value = data.azurerm_client_config.current.tenant_id
     },
     {
       name  = "TF_AZURE_SUBSCRIPTION"
-      value = module.azure_current_client.subscription_id
+      value = data.azurerm_client_config.current.subscription_id
     },
     {
       name  = "TF_AZURE_IDENTITY_1_APP_ID"
-      value = module.azure_current_client.tenant_id
+      value = module.azuread_applications.identity_1.application_id
     },
     {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
-      value = module.azure_current_client.subscription_id
+      value = module.azuread_applications.identity_2.application_id
     },
     {
       name  = "TF_AZURE_KEYVAULT_URI"

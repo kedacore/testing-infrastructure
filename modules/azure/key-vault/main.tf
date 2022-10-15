@@ -2,6 +2,8 @@ provider "azurerm" {
   features {}
 }
 
+data "azurerm_client_config" "current" {}
+
 locals {
   key_vault_name = "${var.unique_project_name}-key-vault"
 }
@@ -15,11 +17,30 @@ resource "azurerm_key_vault" "vault" {
   location                    = data.azurerm_resource_group.rg.location
   resource_group_name         = data.azurerm_resource_group.rg.name
   enabled_for_disk_encryption = false
-  tenant_id                   = var.tenant_id
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
   soft_delete_retention_days  = 7
   purge_protection_enabled    = false
-  enable_rbac_authorization   = true
   sku_name                    = "standard"
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    key_permissions = [
+      "get",
+    ]
+
+    secret_permissions = [
+      "get",
+      "set",
+      "list",
+      "delete"
+    ]
+
+    storage_permissions = [
+      "get",
+    ]
+  }
 
   tags = var.tags
 }
