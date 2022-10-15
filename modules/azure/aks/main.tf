@@ -37,8 +37,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
 }
 
 resource "azuread_application_federated_identity_credential" "identity_federation" {
-  count                 = length(var.workload_identity_service_principals)
-  application_object_id = var.workload_identity_service_principals[count.index].object_id
+  count                 = length(var.workload_identity_applications)
+  application_object_id = var.workload_identity_applications[count.index].object_id
   display_name          = "${var.cluster_name}-federation"
   description           = "${var.cluster_name} federation"
   audiences             = ["api://AzureADTokenExchange"]

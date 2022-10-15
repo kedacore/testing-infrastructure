@@ -25,7 +25,7 @@ module "azure_aks_pr" {
   default_node_pool_instance_type = "Standard_B2s"
   node_resource_group_name        = null
 
-  workload_identity_service_principals = [
+  workload_identity_applications = [
     module.azuread_applications.identity_1,
     module.azuread_applications.identity_2
   ]
@@ -44,7 +44,7 @@ module "azure_aks_nightly" {
   default_node_pool_instance_type = "Standard_B2s"
   node_resource_group_name        = null
 
-  workload_identity_service_principals = [
+  workload_identity_applications = [
     module.azuread_applications.identity_1,
     module.azuread_applications.identity_2
   ]
@@ -58,6 +58,9 @@ module "azure_key_vault" {
   location            = var.azure_location
 
   unique_project_name = var.unique_project_name
+
+  access_object_id = module.azuread_applications.keda_sp.object_id
+  tenant_id        = data.azurerm_client_config.current.tenant_id
 
   secrets = [
     {
@@ -106,7 +109,7 @@ module "azure_servicebus_namespace" {
   location            = var.azure_location
   unique_project_name = var.unique_project_name
   service_bus_admin_identities = [
-    module.azuread_applications.identity_1
+    module.azuread_applications.identity_1_sp
   ]
 
   tags = local.tags
@@ -118,7 +121,7 @@ module "azure_servicebus_namespace_alternative" {
   location            = var.azure_location
   unique_project_name = "${var.unique_project_name}-alt"
   service_bus_admin_identities = [
-    module.azuread_applications.identity_2
+    module.azuread_applications.identity_2_sp
   ]
   tags = local.tags
 }
@@ -184,7 +187,7 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_SP_APP_ID"
-      value = module.azuread_applications.keda_sp_app_id
+      value = module.azuread_applications.keda_sp.application_id
     },
     {
       name  = "TF_AZURE_SP_KEY"
