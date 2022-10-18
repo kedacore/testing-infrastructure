@@ -3,11 +3,6 @@ variable "azure_resource_group_name" {
   description = "Resource group name where azure resources will be placed"
 }
 
-variable "azure_location" {
-  type        = string
-  description = "Location where azure resources will be placed"
-}
-
 variable "unique_project_name" {
   default     = "keda"
   type        = string
