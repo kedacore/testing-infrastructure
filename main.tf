@@ -5,6 +5,23 @@ locals {
   }
 }
 
+// ====== AWS ======
+
+module "aws_iam" {
+  source = "./modules/aws/iam"
+  tags   = local.tags
+  identity_providers = [
+    {
+      name     = "keda-pr-oidc"
+      oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
+    },
+    {
+      name     = "keda-nightly-oidc"
+      oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
+    },
+  ]
+}
+
 // ====== AZURE ======
 
 data "azurerm_client_config" "current" {}
@@ -17,7 +34,6 @@ module "azuread_applications" {
 module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
   kubernetes_version  = "1.23"
   cluster_name        = "keda-pr-run"
 
@@ -36,7 +52,6 @@ module "azure_aks_pr" {
 module "azure_aks_nightly" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
   kubernetes_version  = "1.23"
   cluster_name        = "keda-nightly-run-3"
 
@@ -55,7 +70,6 @@ module "azure_aks_nightly" {
 module "azure_key_vault" {
   source              = "./modules/azure/key-vault"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
 
   unique_project_name = var.unique_project_name
 
@@ -75,7 +89,6 @@ module "azure_key_vault" {
 module "azure_data_explorer" {
   source              = "./modules/azure/data-explorer"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
 
   unique_project_name = var.unique_project_name
 
@@ -90,7 +103,6 @@ module "azure_data_explorer" {
 module "azure_event_hub_namespace" {
   source              = "./modules/azure/event-hub-namespace"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
 
   event_hub_capacity  = 1
   event_hub_sku       = "Standard"
@@ -102,7 +114,6 @@ module "azure_event_hub_namespace" {
 module "azure_monitor_stack" {
   source              = "./modules/azure/monitor-stack"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
   unique_project_name = var.unique_project_name
 
   tags = local.tags
@@ -111,7 +122,6 @@ module "azure_monitor_stack" {
 module "azure_servicebus_namespace" {
   source              = "./modules/azure/service-bus"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
   unique_project_name = var.unique_project_name
   service_bus_admin_identities = [
     module.azuread_applications.identity_1_sp
@@ -123,7 +133,6 @@ module "azure_servicebus_namespace" {
 module "azure_servicebus_namespace_alternative" {
   source              = "./modules/azure/service-bus"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
   unique_project_name = "${var.unique_project_name}-alt"
   service_bus_admin_identities = [
     module.azuread_applications.identity_2_sp
@@ -134,7 +143,6 @@ module "azure_servicebus_namespace_alternative" {
 module "azure_storage_account" {
   source              = "./modules/azure/storage-account"
   resource_group_name = var.azure_resource_group_name
-  location            = var.azure_location
   unique_project_name = var.unique_project_name
 
   tags = local.tags
