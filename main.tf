@@ -12,11 +12,11 @@ module "aws_iam" {
   tags   = local.tags
   identity_providers = [
     {
-      name     = "keda-pr-oidc"
+      name            = "keda-pr-oidc"
       oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
     },
     {
-      name     = "keda-nightly-oidc"
+      name            = "keda-nightly-oidc"
       oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
     },
   ]

@@ -1,11 +1,16 @@
-resource "aws_iam_openid_connect_provider" "oidc_providers" {
+data "tls_certificate" "certs" {
   count = length(var.identity_providers)
+  url   = var.identity_providers[count.index].oidc_issuer_url
+}
+
+resource "aws_iam_openid_connect_provider" "oidc_providers" {
+  count = length(data.tls_certificate.certs)
   url   = var.identity_providers[count.index].oidc_issuer_url
 
   client_id_list = [
     "sts.amazonaws.com",
   ]
-  thumbprint_list = []
+  thumbprint_list = [data.tls_certificate.certs[count.index].certificates[0].sha1_fingerprint]
   tags            = var.tags
 }
 
@@ -44,8 +49,8 @@ resource "aws_iam_role_policy_attachment" "role_assignements" {
 }
 
 resource "aws_iam_policy" "policy" {
-  name   = "e2e-test-policy"
-  tags   = var.tags
+  name = "e2e-test-policy"
+  tags = var.tags
 
   policy = <<EOF
 {
