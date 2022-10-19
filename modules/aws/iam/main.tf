@@ -1,3 +1,19 @@
+resource "aws_iam_user" "e2e_test" {
+  name = "e2e-test-user"
+  path = "/"
+
+  tags = var.tags
+}
+
+resource "aws_iam_access_key" "e2e_test" {
+  user = aws_iam_user.e2e_test.name
+}
+
+resource "aws_iam_user_policy_attachment" "user_assignement" {
+  user       = aws_iam_user.e2e_test.name
+  policy_arn = aws_iam_policy.policy.arn
+}
+
 data "tls_certificate" "certs" {
   count = length(var.identity_providers)
   url   = var.identity_providers[count.index].oidc_issuer_url

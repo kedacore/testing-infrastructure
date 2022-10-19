@@ -7,6 +7,8 @@ locals {
 
 // ====== AWS ======
 
+data "aws_region" "current" {}
+
 module "aws_iam" {
   source = "./modules/aws/iam"
   tags   = local.tags
@@ -225,6 +227,18 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_KEYVAULT_URI"
       value = module.azure_key_vault.vault_uri
+    },
+    {
+      name  = "TF_AWS_ACCESS_KEY"
+      value = module.aws_iam.e2e_user_access_key
+    },
+    {
+      name  = "TF_AWS_SECRET_KEY"
+      value = module.aws_iam.e2e_user_secret_key
+    },
+    {
+      name  = "TF_AWS_REGION"
+      value = data.aws_region.current.name
     },
   ]
 }
