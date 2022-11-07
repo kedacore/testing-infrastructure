@@ -31,6 +31,7 @@ data "azurerm_client_config" "current" {}
 module "azuread_applications" {
   source              = "./modules/azure/aad-applications"
   resource_group_name = var.azure_resource_group_name
+  keda_sp_name        = var.keda_sp_name
 }
 
 module "azure_aks_pr" {
