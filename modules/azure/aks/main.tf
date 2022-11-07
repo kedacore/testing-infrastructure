@@ -42,7 +42,7 @@ resource "azurerm_resource_group_template_deployment" "msi_federation" {
   count               = length(var.workload_identity_applications)
   resource_group_name = data.azurerm_resource_group.rg.name
 
-  template_content  = <<TEMPLATE
+  template_content = <<TEMPLATE
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",

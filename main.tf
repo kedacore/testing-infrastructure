@@ -31,7 +31,6 @@ data "azurerm_client_config" "current" {}
 module "azuread_applications" {
   source              = "./modules/azure/aad-applications"
   resource_group_name = var.azure_resource_group_name
-  keda_sp_name        = var.keda_sp_name
 }
 
 module "azure_aks_pr" {
@@ -76,7 +75,7 @@ module "azure_key_vault" {
 
   unique_project_name = var.unique_project_name
 
-  access_object_id = module.azuread_applications.keda_sp.object_id
+  access_object_id = data.azurerm_client_config.current.object_id
   tenant_id        = data.azurerm_client_config.current.tenant_id
 
   secrets = [
@@ -203,7 +202,7 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_SP_APP_ID"
-      value = module.azuread_applications.keda_sp.application_id
+      value = data.azurerm_client_config.current.client_id
     },
     # {
     #   name  = "TF_AZURE_SP_KEY"
