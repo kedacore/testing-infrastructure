@@ -29,8 +29,8 @@ module "aws_iam" {
 data "azurerm_client_config" "current" {}
 
 module "azuread_applications" {
-  source       = "./modules/azure/aad-applications"
-  keda_sp_name = var.keda_sp_name
+  source              = "./modules/azure/aad-applications"
+  resource_group_name = var.azure_resource_group_name
 }
 
 module "azure_aks_pr" {
@@ -95,7 +95,7 @@ module "azure_data_explorer" {
   unique_project_name = var.unique_project_name
 
   admin_principal_ids = [
-    module.azuread_applications.keda_app.application_id
+    data.azurerm_client_config.current.client_id
   ]
   admin_tenant_id = data.azurerm_client_config.current.tenant_id
 
@@ -126,7 +126,7 @@ module "azure_servicebus_namespace" {
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
   service_bus_admin_identities = [
-    module.azuread_applications.identity_1_sp
+    module.azuread_applications.identity_1
   ]
 
   tags = local.tags
@@ -137,7 +137,7 @@ module "azure_servicebus_namespace_alternative" {
   resource_group_name = var.azure_resource_group_name
   unique_project_name = "${var.unique_project_name}-alt"
   service_bus_admin_identities = [
-    module.azuread_applications.identity_2_sp
+    module.azuread_applications.identity_2
   ]
   tags = local.tags
 }
@@ -204,10 +204,10 @@ module "github_secrets" {
       name  = "TF_AZURE_SP_APP_ID"
       value = module.azuread_applications.keda_sp.application_id
     },
-    {
-      name  = "TF_AZURE_SP_KEY"
-      value = module.azuread_applications.keda_app_secret
-    },
+    # {
+    #   name  = "TF_AZURE_SP_KEY"
+    #   value = module.azuread_applications.keda_app_secret
+    # },
     {
       name  = "TF_AZURE_SP_TENANT"
       value = data.azurerm_client_config.current.tenant_id
