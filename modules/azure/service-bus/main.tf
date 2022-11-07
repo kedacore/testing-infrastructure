@@ -32,5 +32,5 @@ resource "azurerm_role_assignment" "roles" {
   count                = length(var.service_bus_admin_identities)
   scope                = azurerm_servicebus_namespace.namespace.id
   role_definition_name = "Azure Service Bus Data Owner"
-  principal_id         = var.service_bus_admin_identities[count.index].object_id
+  principal_id         = var.service_bus_admin_identities[count.index].principal_id
 }

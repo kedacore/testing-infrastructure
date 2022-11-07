@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/azuread"
       version = "=2.29.0"
     }
+    azapi = {
+      source  = "azure/azapi"
+      version = "1.0.0"
+    }
     aws = {
       source  = "hashicorp/aws"
       version = "=4.35"

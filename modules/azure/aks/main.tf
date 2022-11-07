@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    azapi = {
+      source  = "azure/azapi"
+      version = "1.0.0"
+    }
+  }
+}
+
 provider "azurerm" {
   features {}
 }
@@ -36,12 +45,23 @@ resource "azurerm_kubernetes_cluster" "aks" {
   tags = var.tags
 }
 
-resource "azuread_application_federated_identity_credential" "identity_federation" {
-  count                 = length(var.workload_identity_applications)
-  application_object_id = var.workload_identity_applications[count.index].principal_id
-  display_name          = "${var.cluster_name}-federation"
-  description           = "${var.cluster_name} federation"
-  audiences             = ["api://AzureADTokenExchange"]
-  issuer                = azurerm_kubernetes_cluster.aks.oidc_issuer_url
-  subject               = "system:serviceaccount:keda:keda-operator"
+# Terraform doesn't support MSI federation, replace this once it does
+resource "azapi_resource" "federated_identity_credential" {
+  count                     = length(var.workload_identity_applications)
+  schema_validation_enabled = false
+  name                      = "${var.cluster_name}-federation"
+  parent_id                 = var.workload_identity_applications[count.index].id
+  type                      = "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2022-01-31-preview"
+
+  location = data.azurerm_resource_group.rg.location
+  body = jsonencode({
+    properties = {
+      issuer    = azurerm_kubernetes_cluster.aks.oidc_issuer_url
+      subject   = "system:serviceaccount:keda:keda-operator"
+      audiences = ["api://AzureADTokenExchange"]
+    }
+  })
+  lifecycle {
+    ignore_changes = [location]
+  }
 }
