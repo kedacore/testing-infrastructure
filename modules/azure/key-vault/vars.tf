@@ -27,3 +27,8 @@ variable "tenant_id" {
   type        = string
   description = "TenantId for this key vault"
 }
+
+variable "key_vault_applications" {
+  type        = list(any)
+  description = "Managed identities to grant access in key vault"
+}

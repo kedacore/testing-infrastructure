@@ -21,20 +21,36 @@ resource "azurerm_key_vault" "vault" {
   purge_protection_enabled    = false
   sku_name                    = "standard"
 
-  access_policy {
-    tenant_id = var.tenant_id
-    object_id = var.access_object_id
-
-    secret_permissions = [
-      "Get",
-      "Set",
-      "List",
-      "Delete",
-      "Recover"
-    ]
-  }
-
   tags = var.tags
+}
+
+resource "azurerm_key_vault_access_policy" "default_access_policy" {
+  key_vault_id = azurerm_key_vault.vault.id
+  tenant_id    = var.tenant_id
+  object_id    = var.access_object_id
+
+  secret_permissions = [
+    "Get",
+    "Set",
+    "List",
+    "Delete",
+    "Recover"
+  ]
+}
+
+resource "azurerm_key_vault_access_policy" "msi_access_policy" {
+  count        = length(var.key_vault_applications)
+  key_vault_id = azurerm_key_vault.vault.id
+  tenant_id    = var.tenant_id
+  object_id    = var.key_vault_applications[count.index].principal_id
+
+  secret_permissions = [
+    "Get",
+    "Set",
+    "List",
+    "Delete",
+    "Recover"
+  ]
 }
 
 resource "azurerm_key_vault_secret" "secrets" {

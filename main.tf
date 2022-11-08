@@ -29,7 +29,7 @@ module "aws_iam" {
 data "azurerm_client_config" "current" {}
 
 module "azuread_applications" {
-  source              = "./modules/azure/aad-applications"
+  source              = "./modules/azure/managed_identities"
   resource_group_name = var.azure_resource_group_name
 }
 
@@ -77,6 +77,11 @@ module "azure_key_vault" {
 
   access_object_id = data.azurerm_client_config.current.object_id
   tenant_id        = data.azurerm_client_config.current.tenant_id
+
+  key_vault_applications = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
 
   secrets = [
     {

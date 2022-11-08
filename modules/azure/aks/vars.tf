@@ -38,6 +38,6 @@ variable "default_node_pool_instance_type" {
 
 variable "workload_identity_applications" {
   type        = list(any)
-  description = "Service Principals to federate with the AKS oidc"
+  description = "Managed identities to federate with the AKS oidc"
 }
 
