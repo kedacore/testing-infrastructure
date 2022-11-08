@@ -39,7 +39,7 @@ module "azure_aks_pr" {
   kubernetes_version  = "1.23"
   cluster_name        = "keda-pr-run"
 
-  default_node_pool_count         = 1
+  default_node_pool_count         = 5
   default_node_pool_instance_type = "Standard_B2s"
   node_resource_group_name        = null
 
@@ -57,7 +57,7 @@ module "azure_aks_nightly" {
   kubernetes_version  = "1.23"
   cluster_name        = "keda-nightly-run-3"
 
-  default_node_pool_count         = 1
+  default_node_pool_count         = 5
   default_node_pool_instance_type = "Standard_B2s"
   node_resource_group_name        = null
 
