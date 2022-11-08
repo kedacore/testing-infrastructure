@@ -4,7 +4,7 @@ provider "azurerm" {
 }
 
 locals {
-  storage_name = "${var.unique_project_name}e2estorage"
+  storage_name = "e2estorage${var.unique_project_name}"
 }
 
 data "azurerm_resource_group" "rg" {
