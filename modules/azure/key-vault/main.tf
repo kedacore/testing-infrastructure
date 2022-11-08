@@ -1,5 +1,9 @@
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy = false
+    }
+  }
   skip_provider_registration = true
 }
 
@@ -20,21 +24,23 @@ resource "azurerm_key_vault" "vault" {
   soft_delete_retention_days  = 7
   purge_protection_enabled    = false
   sku_name                    = "standard"
-
-  access_policy {
-    tenant_id = var.tenant_id
-    object_id = var.access_object_id
-
-    secret_permissions = [
-      "Get",
-      "Set",
-      "List",
-      "Delete",
-      "Recover"
-    ]
-  }
+  access_policy = []
 
   tags = var.tags
+}
+
+resource "azurerm_key_vault_access_policy" "default_access_policy" {
+  key_vault_id = azurerm_key_vault.vault.id
+  tenant_id    = var.tenant_id
+  object_id    = var.access_object_id
+
+  secret_permissions = [
+    "Get",
+    "Set",
+    "List",
+    "Delete",
+    "Recover"
+  ]
 }
 
 resource "azurerm_key_vault_access_policy" "msi_access_policy" {
