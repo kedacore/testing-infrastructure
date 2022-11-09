@@ -46,8 +46,7 @@ resource "azurerm_key_vault_access_policy" "msi_access_policy" {
   count          = length(var.key_vault_applications)
   key_vault_id   = azurerm_key_vault.vault.id
   tenant_id      = var.tenant_id
-  object_id      = var.key_vault_applications[count.index].client_id
-  application_id = var.key_vault_applications[count.index].principal_id
+  object_id      = var.key_vault_applications[count.index].principal_id
 
   secret_permissions = [
     "Get",
