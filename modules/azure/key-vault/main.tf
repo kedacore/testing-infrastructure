@@ -23,7 +23,7 @@ resource "azurerm_key_vault" "vault" {
   tenant_id                   = var.tenant_id
   soft_delete_retention_days  = 7
   purge_protection_enabled    = false
-  sku_name                    = "standard"  
+  sku_name                    = "standard"
 
   tags = var.tags
 }
@@ -43,10 +43,11 @@ resource "azurerm_key_vault_access_policy" "default_access_policy" {
 }
 
 resource "azurerm_key_vault_access_policy" "msi_access_policy" {
-  count        = length(var.key_vault_applications)
-  key_vault_id = azurerm_key_vault.vault.id
-  tenant_id    = var.tenant_id
-  object_id    = var.key_vault_applications[count.index].client_id
+  count          = length(var.key_vault_applications)
+  key_vault_id   = azurerm_key_vault.vault.id
+  tenant_id      = var.tenant_id
+  object_id      = var.key_vault_applications[count.index].principal_id
+  application_id = var.key_vault_applications[count.index].client_id
 
   secret_permissions = [
     "Get",
