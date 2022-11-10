@@ -8,6 +8,7 @@ locals {
 // ====== AWS ======
 
 data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
 
 module "aws_iam" {
   source = "./modules/aws/iam"
@@ -244,6 +245,10 @@ module "github_secrets" {
     {
       name  = "TF_AWS_REGION"
       value = data.aws_region.current.name
+    },
+    {
+      name  = "TF_AWS_ACCOUNT_ID"
+      value = data.aws_caller_identity.current.account_id
     },
   ]
 }
