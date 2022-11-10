@@ -44,7 +44,7 @@ module "azure_aks_pr" {
   cluster_name        = "keda-pr-run"
 
   default_node_pool_count         = 4
-  default_node_pool_instance_type = "Standard_B2ms"
+  default_node_pool_instance_type = "Standard_B4ms"
   node_resource_group_name        = null
 
   workload_identity_applications = [
@@ -62,7 +62,7 @@ module "azure_aks_nightly" {
   cluster_name        = "keda-nightly-run-3"
 
   default_node_pool_count         = 4
-  default_node_pool_instance_type = "Standard_B2ms"
+  default_node_pool_instance_type = "Standard_B4ms"
   node_resource_group_name        = null
 
   workload_identity_applications = [
