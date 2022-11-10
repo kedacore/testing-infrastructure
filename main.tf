@@ -3,6 +3,9 @@ locals {
     Project     = "KEDA"
     Environment = "e2e"
   }
+
+  pr_cluster_name   = "keda-pr-run"
+  main_cluster_name = "keda-nightly-run-3"
 }
 
 // ====== AWS ======
@@ -15,11 +18,11 @@ module "aws_iam" {
   tags   = local.tags
   identity_providers = [
     {
-      name            = "keda-pr-oidc"
+      role_name       = "${local.pr_cluster_name}-role"
       oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
     },
     {
-      name            = "keda-nightly-oidc"
+      role_name       = "${local.main_cluster_name}-role"
       oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
     },
   ]
@@ -38,7 +41,7 @@ module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
   kubernetes_version  = "1.23"
-  cluster_name        = "keda-pr-run"
+  cluster_name        = local.pr_cluster_name
 
   default_node_pool_count         = 5
   default_node_pool_instance_type = "Standard_B2ms"
@@ -56,7 +59,7 @@ module "azure_aks_nightly" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
   kubernetes_version  = "1.23"
-  cluster_name        = "keda-nightly-run-3"
+  cluster_name        = local.main_cluster_name
 
   default_node_pool_count         = 5
   default_node_pool_instance_type = "Standard_B2ms"

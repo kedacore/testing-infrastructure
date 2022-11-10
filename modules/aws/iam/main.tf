@@ -33,7 +33,7 @@ resource "aws_iam_openid_connect_provider" "oidc_providers" {
 
 resource "aws_iam_role" "roles" {
   count = length(aws_iam_openid_connect_provider.oidc_providers)
-  name  = var.identity_providers[count.index].name
+  name  = var.identity_providers[count.index].role_name
   tags  = var.tags
 
   assume_role_policy = <<EOF
