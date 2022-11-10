@@ -40,8 +40,8 @@ module "azure_aks_pr" {
   kubernetes_version  = "1.23"
   cluster_name        = "keda-pr-run"
 
-  default_node_pool_count         = 5
-  default_node_pool_instance_type = "Standard_B2ms"
+  default_node_pool_count         = 3
+  default_node_pool_instance_type = "Standard_B4ms"
   node_resource_group_name        = null
 
   workload_identity_applications = [
@@ -58,8 +58,8 @@ module "azure_aks_nightly" {
   kubernetes_version  = "1.23"
   cluster_name        = "keda-nightly-run-3"
 
-  default_node_pool_count         = 5
-  default_node_pool_instance_type = "Standard_B2ms"
+  default_node_pool_count         = 3
+  default_node_pool_instance_type = "Standard_B4ms"
   node_resource_group_name        = null
 
   workload_identity_applications = [
