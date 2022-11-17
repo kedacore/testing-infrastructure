@@ -40,7 +40,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
 resource "azurerm_federated_identity_credential" "msi_federation" {
   count               = length(var.workload_identity_applications)
   name                = "msi_federation-${var.cluster_name}-${var.workload_identity_applications[count.index].name}"
-  location            = data.azurerm_resource_group.rg.location
   resource_group_name = data.azurerm_resource_group.rg.name
   audience            = ["api://AzureADTokenExchange"]
   issuer              = azurerm_kubernetes_cluster.aks.oidc_issuer_url
