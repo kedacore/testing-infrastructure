@@ -14,11 +14,11 @@ module "gcp_iam" {
   source = "./modules/gcp/iam"
   identity_providers = [
     {
-      provider_name       = "${local.pr_cluster_name}"
+      provider_name   = local.pr_cluster_name
       oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
     },
     {
-      provider_name       = "${local.main_cluster_name}"
+      provider_name   = local.main_cluster_name
       oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
     },
   ]
