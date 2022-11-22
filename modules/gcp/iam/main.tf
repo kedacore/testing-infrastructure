@@ -9,6 +9,12 @@ resource "google_service_account_key" "credentials" {
   service_account_id = google_service_account.service_account.name
 }
 
+resource "google_project_iam_member" "project" {
+  project = data.google_project.project.project_id
+  role    = "roles/owner"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
+}
+
 resource "google_iam_workload_identity_pool" "pools" {
   count                     = length(var.identity_providers)
   project                   = data.google_project.project.project_id
