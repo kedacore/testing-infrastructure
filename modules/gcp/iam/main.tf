@@ -52,5 +52,5 @@ resource "google_service_account_iam_member" "wif-sa-sub" {
   count              = length(google_iam_workload_identity_pool.pools)
   service_account_id = google_service_account.service_account.id
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.pools[count.index].name}/google.subject/system:serviceaccount:keda:keda-operator"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.pools[count.index].name}/google.subject/system%3Aserviceaccount%3Akeda%3Akeda-operator"
 }
