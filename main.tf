@@ -266,8 +266,16 @@ module "github_secrets" {
       value = data.aws_caller_identity.current.account_id
     },
     {
-      name  = "TF_GCP_SP_KEY"
+      name  = "TF_GCP_SA_CREDENTIALS"
       value = module.gcp_iam.e2e_user_credentials
+    },
+    {
+      name  = "TF_GCP_SA_EMAIL"
+      value = module.gcp_iam.e2e_user_email
+    },
+    {
+      name  = "TF_GCP_PROJECT"
+      value = module.gcp_iam.project_id
     },
   ]
 }
