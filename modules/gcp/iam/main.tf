@@ -40,9 +40,9 @@ resource "google_iam_workload_identity_pool_provider" "main" {
   }
 }
 
-resource "google_service_account_iam_member" "wif-sa-aud" {
+resource "google_service_account_iam_member" "wif-sa" {
   count              = length(google_iam_workload_identity_pool.pools)
   service_account_id = google_service_account.service_account.id
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.pools[count.index].name}/attribute.aud/sts.googleapis.com"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.pools[count.index].name}"
 }
