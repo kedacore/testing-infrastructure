@@ -274,8 +274,8 @@ module "github_secrets" {
       value = module.gcp_iam.e2e_user_email
     },
     {
-      name  = "TF_GCP_PROJECT"
-      value = module.gcp_iam.project_id
+      name  = "TF_GCP_PROJECT_NUMBER"
+      value = module.gcp_iam.project_number
     },
   ]
 }
