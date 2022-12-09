@@ -122,7 +122,7 @@ module "azure_data_explorer" {
   admin_principal_ids = [
     data.azurerm_client_config.current.client_id,
     module.azuread_applications.identity_1.principal_id,
-    module.azuread_applications.identity_2.principal_id,
+    module.azuread_applications.identity_2.principal_id
   ]
   admin_tenant_id = data.azurerm_client_config.current.tenant_id
 
