@@ -37,7 +37,7 @@ resource "azurerm_kusto_database" "database" {
 
 resource "azurerm_kusto_cluster_principal_assignment" "role" {
   count               = length(var.admin_principal_ids)
-  name                = local.kusto_role_assignement_name
+  name                = "${local.kusto_role_assignement_name}-${count.index}"
   resource_group_name = data.azurerm_resource_group.rg.name
   cluster_name        = azurerm_kusto_cluster.cluster.name
 
