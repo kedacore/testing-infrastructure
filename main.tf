@@ -120,7 +120,9 @@ module "azure_data_explorer" {
   unique_project_name = var.unique_project_name
 
   admin_principal_ids = [
-    data.azurerm_client_config.current.client_id
+    data.azurerm_client_config.current.client_id,
+    module.azuread_applications.identity_1.principal_id,
+    module.azuread_applications.identity_2.principal_id,
   ]
   admin_tenant_id = data.azurerm_client_config.current.tenant_id
 
@@ -135,6 +137,11 @@ module "azure_event_hub_namespace" {
   event_hub_sku       = "Standard"
   unique_project_name = var.unique_project_name
 
+  event_hub_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
+
   tags = local.tags
 }
 
@@ -142,6 +149,11 @@ module "azure_monitor_stack" {
   source              = "./modules/azure/monitor-stack"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
+
+  monitor_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
 
   tags = local.tags
 }
@@ -171,6 +183,11 @@ module "azure_storage_account" {
   source              = "./modules/azure/storage-account"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
+
+  storage_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
 
   tags = local.tags
 }

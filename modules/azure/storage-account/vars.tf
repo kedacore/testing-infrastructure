@@ -12,3 +12,9 @@ variable "tags" {
   type        = map(any)
   description = "Tags to apply on every resource"
 }
+
+variable "storage_admin_identities" {
+  type        = list(any)
+  description = "Storage Account Contributor identities"
+  default     = []
+}
