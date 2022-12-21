@@ -46,3 +46,24 @@ resource "azurerm_federated_identity_credential" "msi_federation" {
   parent_id           = var.workload_identity_applications[count.index].id
   subject             = "system:serviceaccount:keda:keda-operator"
 }
+
+## AAD-Pod-Identity role assignements
+
+data "azurerm_resource_group" "aks_nodes" {
+  name = azurerm_kubernetes_cluster.aks.node_resource_group
+  depends_on = [
+    azurerm_kubernetes_cluster.aks,
+  ]
+}
+
+resource "azurerm_role_assignment" "kubelet_virtual_machine_contributor" {
+  scope                = data.azurerm_resource_group.aks_nodes.id
+  role_definition_name = "Virtual Machine Contributor"
+  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+}
+
+resource "azurerm_role_assignment" "kubelet_identity_operator" {
+  scope                = data.azurerm_resource_group.rg.id
+  role_definition_name = "Managed Identity Operator"
+  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+}
