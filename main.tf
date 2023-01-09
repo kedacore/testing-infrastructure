@@ -259,6 +259,10 @@ module "github_secrets" {
       value = module.azuread_applications.identity_1.client_id
     },
     {
+      name  = "TF_AZURE_IDENTITY_1_APP_FULL_ID"
+      value = module.azuread_applications.identity_1.id
+    },
+    {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
       value = module.azuread_applications.identity_2.client_id
     },
