@@ -215,6 +215,11 @@ module "github_secrets" {
       value = module.azure_monitor_stack.instrumentation_key
     },
     {
+      name  = "TF_AZURE_APP_INSIGHTS_NAME"
+      value = module.azure_monitor_stack.insights_name
+    },
+    // TO BE DELETED ONCE https://github.com/kedacore/keda/pull/4200 is merged
+    {
       name  = "TF_AZURE_APP_INSIGHTS_CONNECTION_STRING"
       value = module.azure_monitor_stack.connection_string
     },
