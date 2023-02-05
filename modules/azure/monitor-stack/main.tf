@@ -30,14 +30,14 @@ resource "azurerm_application_insights" "insights" {
   tags                = var.tags
 }
 
-resource "azurerm_role_assignment" "roles" {
+resource "azurerm_role_assignment" "workspace_roles" {
   count                = length(var.monitor_admin_identities)
   scope                = azurerm_log_analytics_workspace.workspace.id
   role_definition_name = "Log Analytics Contributor"
   principal_id         = var.monitor_admin_identities[count.index].principal_id
 }
 
-resource "azurerm_role_assignment" "roles" {
+resource "azurerm_role_assignment" "insights_roles" {
   count                = length(var.monitor_admin_identities)
   scope                = azurerm_application_insights.insights.id
   role_definition_name = "Log Analytics Contributor"
