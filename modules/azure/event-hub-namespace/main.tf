@@ -30,3 +30,10 @@ resource "azurerm_eventhub_namespace_authorization_rule" "manage_connection" {
   send   = true
   manage = true
 }
+
+resource "azurerm_role_assignment" "roles" {
+  count                = length(var.event_hub_admin_identities)
+  scope                = azurerm_eventhub_namespace.ehub_namespace.id
+  role_definition_name = "Azure Event Hubs Data Owner"
+  principal_id         = var.event_hub_admin_identities[count.index].principal_id
+}

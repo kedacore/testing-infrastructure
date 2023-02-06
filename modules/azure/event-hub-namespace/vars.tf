@@ -22,3 +22,9 @@ variable "tags" {
   type        = map(any)
   description = "Tags to apply on every resource"
 }
+
+variable "event_hub_admin_identities" {
+  type        = list(any)
+  description = "Azure Event Hubs Data Owner identities"
+  default     = []
+}

@@ -12,3 +12,9 @@ variable "tags" {
   type        = map(any)
   description = "Tags to apply on every resource"
 }
+
+variable "monitor_admin_identities" {
+  type        = list(any)
+  description = "Log Analytics Contributor identities"
+  default     = []
+}

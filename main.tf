@@ -8,6 +8,22 @@ locals {
   main_cluster_name = "keda-nightly-run-3"
 }
 
+// ====== GCP ======
+
+module "gcp_iam" {
+  source = "./modules/gcp/iam"
+  identity_providers = [
+    {
+      provider_name   = local.pr_cluster_name
+      oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
+    },
+    {
+      provider_name   = local.main_cluster_name
+      oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
+    },
+  ]
+}
+
 // ====== AWS ======
 
 data "aws_region" "current" {}
@@ -104,7 +120,9 @@ module "azure_data_explorer" {
   unique_project_name = var.unique_project_name
 
   admin_principal_ids = [
-    data.azurerm_client_config.current.client_id
+    data.azurerm_client_config.current.client_id,
+    module.azuread_applications.identity_1.principal_id,
+    module.azuread_applications.identity_2.principal_id
   ]
   admin_tenant_id = data.azurerm_client_config.current.tenant_id
 
@@ -119,6 +137,11 @@ module "azure_event_hub_namespace" {
   event_hub_sku       = "Standard"
   unique_project_name = var.unique_project_name
 
+  event_hub_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
+
   tags = local.tags
 }
 
@@ -126,6 +149,11 @@ module "azure_monitor_stack" {
   source              = "./modules/azure/monitor-stack"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
+
+  monitor_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
 
   tags = local.tags
 }
@@ -156,6 +184,11 @@ module "azure_storage_account" {
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
 
+  storage_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
+
   tags = local.tags
 }
 
@@ -181,6 +214,11 @@ module "github_secrets" {
       name  = "TF_AZURE_APP_INSIGHTS_INSTRUMENTATION_KEY"
       value = module.azure_monitor_stack.instrumentation_key
     },
+    {
+      name  = "TF_AZURE_APP_INSIGHTS_NAME"
+      value = module.azure_monitor_stack.insights_name
+    },
+    // TO BE DELETED ONCE https://github.com/kedacore/keda/pull/4200 is merged
     {
       name  = "TF_AZURE_APP_INSIGHTS_CONNECTION_STRING"
       value = module.azure_monitor_stack.connection_string
@@ -213,10 +251,6 @@ module "github_secrets" {
       name  = "TF_AZURE_SP_APP_ID"
       value = data.azurerm_client_config.current.client_id
     },
-    # {
-    #   name  = "TF_AZURE_SP_KEY"
-    #   value = module.azuread_applications.keda_app_secret
-    # },
     {
       name  = "TF_AZURE_SP_TENANT"
       value = data.azurerm_client_config.current.tenant_id
@@ -228,6 +262,10 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_IDENTITY_1_APP_ID"
       value = module.azuread_applications.identity_1.client_id
+    },
+    {
+      name  = "TF_AZURE_IDENTITY_1_APP_FULL_ID"
+      value = module.azuread_applications.identity_1.id
     },
     {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
@@ -252,6 +290,18 @@ module "github_secrets" {
     {
       name  = "TF_AWS_ACCOUNT_ID"
       value = data.aws_caller_identity.current.account_id
+    },
+    {
+      name  = "TF_GCP_SA_CREDENTIALS"
+      value = module.gcp_iam.e2e_user_credentials
+    },
+    {
+      name  = "TF_GCP_SA_EMAIL"
+      value = module.gcp_iam.e2e_user_email
+    },
+    {
+      name  = "TF_GCP_PROJECT_NUMBER"
+      value = module.gcp_iam.project_number
     },
   ]
 }

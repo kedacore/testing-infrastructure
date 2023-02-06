@@ -19,3 +19,17 @@ resource "azurerm_storage_account" "storage" {
   account_replication_type = "LRS"
   tags                     = var.tags
 }
+
+resource "azurerm_role_assignment" "blob_roles" {
+  count                = length(var.storage_admin_identities)
+  scope                = azurerm_storage_account.storage.id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = var.storage_admin_identities[count.index].principal_id
+}
+
+resource "azurerm_role_assignment" "queue_roles" {
+  count                = length(var.storage_admin_identities)
+  scope                = azurerm_storage_account.storage.id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = var.storage_admin_identities[count.index].principal_id
+}
