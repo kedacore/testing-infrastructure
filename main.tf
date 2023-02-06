@@ -40,7 +40,7 @@ module "azuread_applications" {
 module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.24"
+  kubernetes_version  = "1.25"
   cluster_name        = "keda-pr-run"
 
   default_node_pool_count         = 4
@@ -58,7 +58,7 @@ module "azure_aks_pr" {
 module "azure_aks_nightly" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.24"
+  kubernetes_version  = "1.25"
   cluster_name        = "keda-nightly-run-3"
 
   default_node_pool_count         = 4
