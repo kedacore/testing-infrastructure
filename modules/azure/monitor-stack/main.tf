@@ -43,10 +43,3 @@ resource "azurerm_role_assignment" "insights_roles" {
   role_definition_name = "Log Analytics Contributor"
   principal_id         = var.monitor_admin_identities[count.index].principal_id
 }
-
-resource "azurerm_role_assignment" "monitor_roles" {
-  count                = length(var.monitor_admin_identities)
-  scope                = data.azurerm_resource_group.rg.id
-  role_definition_name = "Monitoring Reader"
-  principal_id         = var.monitor_admin_identities[count.index].principal_id
-}
