@@ -6,6 +6,7 @@ provider "azurerm" {
 locals {
   app_insights_name            = "${var.unique_project_name}-app-insights"
   log_analytics_workspace_name = "${var.unique_project_name}-log-analytics"
+  azure_monitor_workspace_name = "${var.unique_project_name}-azure-monitor-workspace"
 }
 
 data "azurerm_resource_group" "rg" {
@@ -42,4 +43,47 @@ resource "azurerm_role_assignment" "insights_roles" {
   scope                = azurerm_application_insights.insights.id
   role_definition_name = "Log Analytics Contributor"
   principal_id         = var.monitor_admin_identities[count.index].principal_id
+}
+
+resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" {
+  name                = "azure_monitor_workspace"
+  resource_group_name = data.azurerm_resource_group.rg.name
+  deployment_mode     = "Incremental"
+  parameters_content = jsonencode({
+    "name" = {
+      value = local.azure_monitor_workspace_name
+    }
+  })
+  template_content = <<TEMPLATE
+{
+    "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "name": {
+            "type": "string"
+        },        
+    },
+    "resources": [
+        {
+            "type": "microsoft.monitor/accounts",
+            "apiVersion": "2021-06-03-preview",
+            "name": "[parameters('name')]",
+            "location": "[resourceGroup().location]"
+        }
+    ],
+    "outputs": {
+      "workspace_id": {
+        "type": "string",
+        "value": "[resourceId('microsoft.monitor/accounts', parameters('name'))]"
+      }
+    }
+}
+TEMPLATE
+
+  // NOTE: whilst we show an inline template here, we recommend
+  // sourcing this from a file for readability/editor support
+}
+
+output arm_example_output {
+  value = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
 }
