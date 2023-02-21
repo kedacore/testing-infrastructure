@@ -125,6 +125,7 @@ resource "azurerm_resource_group_template_deployment" "dcr" {
       "type": "Microsoft.Insights/dataCollectionRules",
       "apiVersion": "2021-09-01-preview",
       "name": "[variables('dcr_name')]",
+      "location": "[resourceGroup().location]",
       "kind": "Linux",
       "properties": {
         "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints/', variables('dce_name'))]",
