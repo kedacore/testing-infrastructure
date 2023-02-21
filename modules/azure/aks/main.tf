@@ -3,6 +3,13 @@ provider "azurerm" {
   skip_provider_registration = true
 }
 
+locals {
+  azure_monitor_workspace_connection_name = "${var.cluster_name}-amw-connection"
+  dce_name                                = "${local.azure_monitor_workspace_connection_name}-dce"
+  dcr_name                                = "${local.azure_monitor_workspace_connection_name}-dcr"
+  dcra_name                               = "${local.azure_monitor_workspace_connection_name}-dcra"
+}
+
 data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
@@ -68,4 +75,142 @@ resource "azurerm_role_assignment" "kubelet_identity_operator" {
   scope                = data.azurerm_resource_group.rg.id
   role_definition_name = "Managed Identity Operator"
   principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+}
+
+resource "azurerm_monitor_data_collection_endpoint" "dce" {
+  name                = local.dce_name
+  resource_group_name = data.azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  kind                = "Linux"
+  tags                = var.tags
+}
+
+resource "azurerm_resource_group_template_deployment" "dcr" {
+  name                = local.dcr_name
+  resource_group_name = data.azurerm_resource_group.rg.name
+  deployment_mode     = "Incremental"
+
+  depends_on = [
+    azurerm_monitor_data_collection_endpoint.dce
+  ]
+
+  parameters_content = jsonencode({
+    "dce_name" = {
+      value = local.dce_name
+    }
+    "dcr_name" = {
+      value = local.dcr_name
+    }
+    "azure_monitor_workspace_id" = {
+      value = var.azure_monitor_workspace_id
+    }
+  })
+  template_content = <<TEMPLATE
+{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "dce_name": {
+          "type": "string"
+      },
+      "dcr_name": {
+          "type": "string"
+      },
+      "azure_monitor_workspace_id": {
+          "type": "string"
+      }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[variables('dcr_name')]",
+      "kind": "Linux",
+      "properties": {
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints/', variables('dce_name'))]",
+        "dataFlows": [
+          {
+            "destinations": ["MonitoringAccount1"],
+            "streams": ["Microsoft-PrometheusMetrics"]
+          }
+        ],
+        "dataSources": {
+          "prometheusForwarder": [
+            {
+              "name": "PrometheusDataSource",
+              "streams": ["Microsoft-PrometheusMetrics"],
+              "labelIncludeFilter": {}
+            }
+          ]
+        },
+        "description": "DCR for Azure Monitor Metrics Profile (Managed Prometheus)",
+        "destinations": {
+          "monitoringAccounts": [
+            {
+              "accountResourceId": "[parameters('azure_monitor_workspace_id')]",
+              "name": "MonitoringAccount1"
+            }
+          ]
+        }
+      }
+    }
+  ],
+}
+TEMPLATE
+
+  // NOTE: whilst we show an inline template here, we recommend
+  // sourcing this from a file for readability/editor support
+}
+
+resource "azurerm_resource_group_template_deployment" "dcra" {
+  name                = local.dcra_name
+  resource_group_name = data.azurerm_resource_group.rg.name
+  deployment_mode     = "Incremental"
+
+  depends_on = [
+    azurerm_resource_group_template_deployment.dcr
+  ]
+
+  parameters_content = jsonencode({
+    "dcr_name" = {
+      value = local.dcr_name
+    }
+    "dcra_name" = {
+      value = local.dcra_name
+    }
+    "cluster_name" = {
+      value = var.cluster_name
+    }
+  })
+  template_content = <<TEMPLATE
+{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "dcr_name": {
+      "type": "string"
+    },
+    "dcra_name": {
+      "type": "string"
+    },
+    "cluster_name": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerService/managedClusters/providers/dataCollectionRuleAssociations",
+      "name": "[concat(variables('cluster_name'),'/microsoft.insights/', variables('dcra_name'))]",
+      "apiVersion": "2021-09-01-preview",
+      "properties": {
+        "description": "Association of data collection rule. Deleting this association will break the data collection for this AKS Cluster.",
+        "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcr_name'))]"
+      }
+    }
+  ]
+}
+TEMPLATE
+
+  // NOTE: whilst we show an inline template here, we recommend
+  // sourcing this from a file for readability/editor support
 }

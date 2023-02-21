@@ -59,6 +59,8 @@ module "azure_aks_pr" {
   kubernetes_version  = "1.25"
   cluster_name        = "keda-pr-run"
 
+  azure_monitor_workspace_id = module.azure_monitor_stack.azure_monitor_workspace_id
+
   default_node_pool_count         = 4
   default_node_pool_instance_type = "Standard_B4ms"
   node_resource_group_name        = null
@@ -76,6 +78,8 @@ module "azure_aks_nightly" {
   resource_group_name = var.azure_resource_group_name
   kubernetes_version  = "1.25"
   cluster_name        = "keda-nightly-run-3"
+
+  azure_monitor_workspace_id = module.azure_monitor_stack.azure_monitor_workspace_id
 
   default_node_pool_count         = 4
   default_node_pool_instance_type = "Standard_B4ms"
@@ -225,7 +229,7 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_LOG_ANALYTICS_WORKSPACE_ID"
-      value = module.azure_monitor_stack.workspace_id
+      value = module.azure_monitor_stack.log_analytics_workspace_id
     },
     {
       name  = "TF_AZURE_SERVICE_BUS_CONNECTION_STRING"
