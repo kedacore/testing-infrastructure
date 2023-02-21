@@ -84,6 +84,6 @@ TEMPLATE
   // sourcing this from a file for readability/editor support
 }
 
-output arm_example_output {
+output "arm_example_output" {
   value = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
 }
