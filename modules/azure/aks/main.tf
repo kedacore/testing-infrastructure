@@ -22,6 +22,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
   oidc_issuer_enabled = true
   node_resource_group = var.node_resource_group_name
 
+  monitor_metrics = {}
+
   default_node_pool {
     name                 = "default"
     node_count           = var.default_node_pool_count
