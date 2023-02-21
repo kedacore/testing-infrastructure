@@ -4,7 +4,7 @@ provider "azurerm" {
 }
 
 locals {
-  azure_monitor_workspace_connection_name = "${var.cluster_name}-amw-connection"
+  azure_monitor_workspace_connection_name = "${var.cluster_name}-amw"
   dce_name                                = "${local.azure_monitor_workspace_connection_name}-dce"
   dcr_name                                = "${local.azure_monitor_workspace_connection_name}-dcr"
   dcra_name                               = "${local.azure_monitor_workspace_connection_name}-dcra"
