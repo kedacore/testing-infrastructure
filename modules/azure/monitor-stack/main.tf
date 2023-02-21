@@ -74,7 +74,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
     "outputs": {
       "workspace_id": {
         "type": "string",
-        "value": "[resourceId('microsoft.monitor/accounts', parameters('name'))]"
+        "value": "[resourceId('microsoft.monitor/accounts', parameters('workspace_name'))]"
       }
     }
 }
@@ -84,6 +84,9 @@ TEMPLATE
   // sourcing this from a file for readability/editor support
 }
 
-output "arm_example_output" {
-  value = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
+resource "azurerm_role_assignment" "azure_workspace_roles" {
+  count                = length(var.monitor_admin_identities)
+  scope                = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
+  role_definition_name = "Monitoring Data Reader"
+  principal_id         = var.monitor_admin_identities[count.index].principal_id
 }
