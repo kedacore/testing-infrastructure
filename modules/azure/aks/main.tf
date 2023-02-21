@@ -124,10 +124,10 @@ resource "azurerm_resource_group_template_deployment" "dcr" {
     {
       "type": "Microsoft.Insights/dataCollectionRules",
       "apiVersion": "2021-09-01-preview",
-      "name": "[variables('dcr_name')]",
+      "name": "[parameters('dcr_name')]",
       "kind": "Linux",
       "properties": {
-        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints/', variables('dce_name'))]",
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints/', parameters('dce_name'))]",
         "dataFlows": [
           {
             "destinations": ["MonitoringAccount1"],
@@ -200,11 +200,11 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
   "resources": [
     {
       "type": "Microsoft.ContainerService/managedClusters/providers/dataCollectionRuleAssociations",
-      "name": "[concat(variables('cluster_name'),'/microsoft.insights/', variables('dcra_name'))]",
+      "name": "[concat(parameters('cluster_name'),'/microsoft.insights/', parameters('dcra_name'))]",
       "apiVersion": "2021-09-01-preview",
       "properties": {
         "description": "Association of data collection rule. Deleting this association will break the data collection for this AKS Cluster.",
-        "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcr_name'))]"
+        "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcr_name'))]"
       }
     }
   ]
