@@ -50,7 +50,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
   parameters_content = jsonencode({
-    "name" = {
+    "workspace_name" = {
       value = local.azure_monitor_workspace_name
     }
   })
@@ -59,7 +59,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
     "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "name": {
+        "workspace_name": {
             "type": "string"
         },        
     },
@@ -67,7 +67,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
         {
             "type": "microsoft.monitor/accounts",
             "apiVersion": "2021-06-03-preview",
-            "name": "[parameters('name')]",
+            "name": "[parameters('workspace_name')]",
             "location": "[resourceGroup().location]"
         }
     ],
