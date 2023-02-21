@@ -46,7 +46,7 @@ resource "azurerm_role_assignment" "insights_roles" {
 }
 
 resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" {
-  name                = "azure_monitor_workspace"
+  name                = local.azure_monitor_workspace_name
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
   parameters_content = jsonencode({
