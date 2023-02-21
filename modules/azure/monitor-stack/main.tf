@@ -6,7 +6,7 @@ provider "azurerm" {
 locals {
   app_insights_name            = "${var.unique_project_name}-app-insights"
   log_analytics_workspace_name = "${var.unique_project_name}-log-analytics"
-  azure_monitor_workspace_name = "${var.unique_project_name}-azure-monitor-workspace"
+  azure_monitor_workspace_name = "${var.unique_project_name}-az-monitor-workspace"
 }
 
 data "azurerm_resource_group" "rg" {
