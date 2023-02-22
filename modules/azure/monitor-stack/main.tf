@@ -74,7 +74,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
     ],
     "outputs": {
       "workspace_id": {
-        "type": "string",
+        "type": "String",
         "value": "[resourceId('microsoft.monitor/accounts', parameters('workspace_name'))]"
       }
     }
