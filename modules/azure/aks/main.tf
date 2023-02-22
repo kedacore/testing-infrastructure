@@ -80,21 +80,49 @@ resource "azurerm_role_assignment" "kubelet_identity_operator" {
 
 ## Azure Managed prometheus
 
-resource "azurerm_monitor_data_collection_endpoint" "dce" {
-  name                = local.dce_name
+resource "azurerm_resource_group_template_deployment" "dce" {
+  name                = "${local.dce_name}"
   resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
-  kind                = "Linux"
-  tags                = var.tags
+  deployment_mode     = "Incremental"
+
+  parameters_content = jsonencode({
+    "dce_name" = {
+      value = local.dce_name
+    }
+  })
+  template_content = <<TEMPLATE
+{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "dce_name": {
+          "type": "String"
+      }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionEndpoints",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[parameters('dce_name')]",
+      "location": "[resourceGroup().location]",
+      "kind": "Linux",
+      "properties": {}
+    }
+  ]
+}
+TEMPLATE
+
+  // NOTE: whilst we show an inline template here, we recommend
+  // sourcing this from a file for readability/editor support
 }
 
 resource "azurerm_resource_group_template_deployment" "dcr" {
-  name                = local.dcr_name
+  name                = "${local.dcr_name}"
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
   depends_on = [
-    azurerm_monitor_data_collection_endpoint.dce
+    azurerm_resource_group_template_deployment.dce
   ]
 
   parameters_content = jsonencode({
@@ -167,7 +195,7 @@ TEMPLATE
 }
 
 resource "azurerm_resource_group_template_deployment" "dcra" {
-  name                = local.dcra_name
+  name                = "${local.dcra_name}"
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
@@ -206,6 +234,7 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
       "type": "Microsoft.ContainerService/managedClusters/providers/dataCollectionRuleAssociations",
       "name": "[concat(parameters('cluster_name'),'/microsoft.insights/', parameters('dcra_name'))]",
       "apiVersion": "2021-09-01-preview",
+      "location": "[resourceGroup().location]",
       "properties": {
         "description": "Association of data collection rule. Deleting this association will break the data collection for this AKS Cluster.",
         "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcr_name'))]"
