@@ -30,8 +30,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
   node_resource_group = var.node_resource_group_name
 
   monitor_metrics {
-    annotations_allowed = ""
-    labels_allowed      = ""
+    annotations_allowed = []
+    labels_allowed      = []
   }
 
   default_node_pool {
