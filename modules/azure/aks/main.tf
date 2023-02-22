@@ -114,13 +114,13 @@ resource "azurerm_resource_group_template_deployment" "dcr" {
   "contentVersion": "1.0.0.0",
   "parameters": {
       "dce_name": {
-          "type": "string"
+          "type": "String"
       },
       "dcr_name": {
-          "type": "string"
+          "type": "String"
       },
       "azure_monitor_workspace_id": {
-          "type": "string"
+          "type": "String"
       }
   },
   "resources": [
@@ -192,13 +192,13 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
   "contentVersion": "1.0.0.0",
   "parameters": {
     "dcr_name": {
-      "type": "string"
+      "type": "String"
     },
     "dcra_name": {
-      "type": "string"
+      "type": "String"
     },
     "cluster_name": {
-      "type": "string"
+      "type": "String"
     }
   },
   "resources": [
@@ -241,13 +241,13 @@ resource "azurerm_resource_group_template_deployment" "rules" {
   "contentVersion": "1.0.0.0",
   "parameters": {
     "rule_group_name": {
-      "type": "string"
+      "type": "String"
     },
     "workspace_name": {
-      "type": "string"
+      "type": "String"
     },
     "cluster_name": {
-      "type": "string"
+      "type": "String"
     }
   },
   "resources": [
