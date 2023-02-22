@@ -81,7 +81,7 @@ resource "azurerm_role_assignment" "kubelet_identity_operator" {
 ## Azure Managed prometheus
 
 resource "azurerm_resource_group_template_deployment" "dce" {
-  name                = "${local.dce_name}"
+  name                = local.dce_name
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
@@ -117,7 +117,7 @@ TEMPLATE
 }
 
 resource "azurerm_resource_group_template_deployment" "dcr" {
-  name                = "${local.dcr_name}"
+  name                = local.dcr_name
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
@@ -195,7 +195,7 @@ TEMPLATE
 }
 
 resource "azurerm_resource_group_template_deployment" "dcra" {
-  name                = "${local.dcra_name}"
+  name                = local.dcra_name
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
