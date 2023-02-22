@@ -45,3 +45,8 @@ variable "azure_monitor_workspace_id" {
   type        = string
   description = "Azure Monitor Workspace ID"
 }
+
+variable "azure_monitor_workspace_name" {
+  type        = string
+  description = "Azure Monitor Workspace name"
+}

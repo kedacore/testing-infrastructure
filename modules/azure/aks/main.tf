@@ -8,6 +8,7 @@ locals {
   dce_name                                = "${local.azure_monitor_workspace_connection_name}-dce"
   dcr_name                                = "${local.azure_monitor_workspace_connection_name}-dcr"
   dcra_name                               = "${local.azure_monitor_workspace_connection_name}-dcra"
+  rule_group_name                         = "${local.azure_monitor_workspace_connection_name}-rule"
 }
 
 data "azurerm_resource_group" "rg" {
@@ -76,6 +77,8 @@ resource "azurerm_role_assignment" "kubelet_identity_operator" {
   role_definition_name = "Managed Identity Operator"
   principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
 }
+
+## Azure Managed prometheus
 
 resource "azurerm_monitor_data_collection_endpoint" "dce" {
   name                = local.dce_name
@@ -180,7 +183,7 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
       value = local.dcra_name
     }
     "cluster_name" = {
-      value = var.cluster_name
+      value = azurerm_kubernetes_cluster.aks.name
     }
   })
   template_content = <<TEMPLATE
@@ -206,6 +209,106 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
       "properties": {
         "description": "Association of data collection rule. Deleting this association will break the data collection for this AKS Cluster.",
         "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcr_name'))]"
+      }
+    }
+  ]
+}
+TEMPLATE
+
+  // NOTE: whilst we show an inline template here, we recommend
+  // sourcing this from a file for readability/editor support
+}
+
+resource "azurerm_resource_group_template_deployment" "rules" {
+  name                = local.rule_name
+  resource_group_name = data.azurerm_resource_group.rg.name
+  deployment_mode     = "Incremental"
+
+  parameters_content = jsonencode({
+    "rule_group_name" = {
+      value = local.rule_group_name
+    }
+    "workspace_name" = {
+      value = var.azure_monitor_workspace_name
+    }
+    "cluster_name" = {
+      value = azurerm_kubernetes_cluster.aks.name
+    }
+  })
+  template_content = <<TEMPLATE
+{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "rule_group_name": {
+      "type": "string"
+    },
+    "workspace_name": {
+      "type": "string"
+    },
+    "cluster_name": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.AlertsManagement/prometheusRuleGroups",
+      "apiVersion": "2021-07-22-preview",
+      "name": "[parameters('rule_group_name')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+          "enabled": true,
+          "clusterName": "[parameters('cluster_name')]",
+          "scopes": [
+              "[resourceId('microsoft.monitor/accounts', parameters('workspace_name'))]"
+          ],
+          "rules": [
+              {
+                  "record": "instance:node_num_cpu:sum",
+                  "expression": "count without (cpu, mode) (  node_cpu_seconds_total{job=\"node\",mode=\"idle\"})"
+              },
+              {
+                  "record": "instance:node_cpu_utilisation:rate5m",
+                  "expression": "1 - avg without (cpu) (  sum without (mode) (rate(node_cpu_seconds_total{job=\"node\", mode=~\"idle|iowait|steal\"}[5m])))"
+              },
+              {
+                  "record": "instance:node_load1_per_cpu:ratio",
+                  "expression": "(  node_load1{job=\"node\"}/  instance:node_num_cpu:sum{job=\"node\"})"
+              },
+              {
+                  "record": "instance:node_memory_utilisation:ratio",
+                  "expression": "1 - (  (    node_memory_MemAvailable_bytes{job=\"node\"}    or    (      node_memory_Buffers_bytes{job=\"node\"}      +      node_memory_Cached_bytes{job=\"node\"}      +      node_memory_MemFree_bytes{job=\"node\"}      +      node_memory_Slab_bytes{job=\"node\"}    )  )/  node_memory_MemTotal_bytes{job=\"node\"})"
+              },
+              {
+                  "record": "instance:node_vmstat_pgmajfault:rate5m",
+                  "expression": "rate(node_vmstat_pgmajfault{job=\"node\"}[5m])"
+              },
+              {
+                  "record": "instance_device:node_disk_io_time_seconds:rate5m",
+                  "expression": "rate(node_disk_io_time_seconds_total{job=\"node\", device!=\"\"}[5m])"
+              },
+              {
+                  "record": "instance_device:node_disk_io_time_weighted_seconds:rate5m",
+                  "expression": "rate(node_disk_io_time_weighted_seconds_total{job=\"node\", device!=\"\"}[5m])"
+              },
+              {
+                  "record": "instance:node_network_receive_bytes_excluding_lo:rate5m",
+                  "expression": "sum without (device) (  rate(node_network_receive_bytes_total{job=\"node\", device!=\"lo\"}[5m]))"
+              },
+              {
+                  "record": "instance:node_network_transmit_bytes_excluding_lo:rate5m",
+                  "expression": "sum without (device) (  rate(node_network_transmit_bytes_total{job=\"node\", device!=\"lo\"}[5m]))"
+              },
+              {
+                  "record": "instance:node_network_receive_drop_excluding_lo:rate5m",
+                  "expression": "sum without (device) (  rate(node_network_receive_drop_total{job=\"node\", device!=\"lo\"}[5m]))"
+              },
+              {
+                  "record": "instance:node_network_transmit_drop_excluding_lo:rate5m",
+                  "expression": "sum without (device) (  rate(node_network_transmit_drop_total{job=\"node\", device!=\"lo\"}[5m]))"
+              }
+          ],
+          "interval": "PT1M"
       }
     }
   ]
