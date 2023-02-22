@@ -220,7 +220,7 @@ TEMPLATE
 }
 
 resource "azurerm_resource_group_template_deployment" "rules" {
-  name                = local.rule_name
+  name                = local.rule_group_name
   resource_group_name = data.azurerm_resource_group.rg.name
   deployment_mode     = "Incremental"
 
