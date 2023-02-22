@@ -40,3 +40,13 @@ variable "workload_identity_applications" {
   type        = list(any)
   description = "Managed identities to federate with the AKS oidc"
 }
+
+variable "azure_monitor_workspace_id" {
+  type        = string
+  description = "Azure Monitor Workspace ID"
+}
+
+variable "azure_monitor_workspace_name" {
+  type        = string
+  description = "Azure Monitor Workspace name"
+}
