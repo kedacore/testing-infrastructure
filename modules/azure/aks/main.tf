@@ -8,7 +8,7 @@ locals {
   dce_name                                = "${local.azure_monitor_workspace_connection_name}-dce"
   dcr_name                                = "${local.azure_monitor_workspace_connection_name}-dcr"
   dcra_name                               = "${local.azure_monitor_workspace_connection_name}-dcra"
-  rule_group_name                         = "${local.azure_monitor_workspace_connection_name}-rule"
+  rule_group_name                         = "${local.azure_monitor_workspace_connection_name}-rules"
 }
 
 data "azurerm_resource_group" "rg" {
