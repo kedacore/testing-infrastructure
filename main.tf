@@ -234,6 +234,10 @@ module "github_secrets" {
       value = module.azure_monitor_stack.log_analytics_workspace_id
     },
     {
+      name  = "TF_AZURE_MANAGED_PROMETHEUS_QUERY_ENDPOINT"
+      value = module.azure_monitor_stack.azure_monitor_prometheus_query_endpoint
+    },
+    {
       name  = "TF_AZURE_SERVICE_BUS_CONNECTION_STRING"
       value = module.azure_servicebus_namespace.connection_string
     },

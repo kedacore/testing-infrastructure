@@ -25,3 +25,7 @@ output "azure_monitor_workspace_id" {
 output "azure_monitor_workspace_name" {
   value = local.azure_monitor_workspace_name
 }
+
+output "azure_monitor_prometheus_query_endpoint" {
+  value = local.azure_monitor_prometheus_query_endpoint
+}

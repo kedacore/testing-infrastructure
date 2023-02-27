@@ -4,10 +4,11 @@ provider "azurerm" {
 }
 
 locals {
-  app_insights_name            = "${var.unique_project_name}-app-insights"
-  log_analytics_workspace_name = "${var.unique_project_name}-log-analytics"
-  azure_monitor_workspace_name = "${var.unique_project_name}-monitor-workspace"
-  azure_monitor_workspace_id   = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
+  app_insights_name                       = "${var.unique_project_name}-app-insights"
+  log_analytics_workspace_name            = "${var.unique_project_name}-log-analytics"
+  azure_monitor_workspace_name            = "${var.unique_project_name}-monitor-workspace"
+  azure_monitor_workspace_id              = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
+  azure_monitor_prometheus_query_endpoint = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).prometheus_query_endpoint.value
 }
 
 data "azurerm_resource_group" "rg" {
@@ -76,6 +77,10 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
       "workspace_id": {
         "type": "String",
         "value": "[resourceId('microsoft.monitor/accounts', parameters('workspace_name'))]"
+      },
+      "prometheus_query_endpoint": {
+        "type": "String",
+        "value": "[reference(resourceId('microsoft.monitor/accounts', parameters('workspace_name'))).properties.metrics.prometheusQueryEndpoint]"
       }
     }
 }
