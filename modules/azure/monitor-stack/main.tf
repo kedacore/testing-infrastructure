@@ -91,7 +91,7 @@ TEMPLATE
 
 resource "azurerm_role_assignment" "azure_workspace_roles" {
   count                = length(var.monitor_admin_identities)
-  scope                = local.azure_monitor_workspace.workspace_id.value
+  scope                = local.azure_monitor_workspace_id
   role_definition_name = "Monitoring Data Reader"
   principal_id         = var.monitor_admin_identities[count.index].principal_id
 }
