@@ -7,7 +7,6 @@ locals {
   app_insights_name                       = "${var.unique_project_name}-app-insights"
   log_analytics_workspace_name            = "${var.unique_project_name}-log-analytics"
   azure_monitor_workspace_name            = "${var.unique_project_name}-monitor-workspace"
-  azure_monitor_workspace_id              = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
 }
 
 data "azurerm_resource_group" "rg" {
@@ -91,7 +90,7 @@ TEMPLATE
 
 resource "azurerm_role_assignment" "azure_workspace_roles" {
   count                = length(var.monitor_admin_identities)
-  scope                = local.azure_monitor_workspace_id
+  scope                = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
   role_definition_name = "Monitoring Data Reader"
   principal_id         = var.monitor_admin_identities[count.index].principal_id
 }
