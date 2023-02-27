@@ -19,7 +19,7 @@ output "log_analytics_workspace_id" {
 }
 
 output "azure_monitor_workspace_id" {
-  value = local.azure_monitor_workspace.workspace_id.value
+  value = local.azure_monitor_workspace_id
 }
 
 output "azure_monitor_workspace_name" {
