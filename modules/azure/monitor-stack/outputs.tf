@@ -19,11 +19,11 @@ output "log_analytics_workspace_id" {
 }
 
 output "azure_monitor_workspace_id" {
-  value = local.azure_monitor_workspace_id
+  value = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).workspace_id.value
 }
 
 output "azure_monitor_workspace_name" {
-  value = local.azure_monitor_workspace_name
+  value = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content).prometheus_query_endpoint.value
 }
 
 output "azure_monitor_prometheus_query_endpoint" {
