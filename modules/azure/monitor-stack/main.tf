@@ -79,7 +79,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
       },
       "prometheus_query_endpoint": {
         "type": "String",
-        "value": "[reference(resourceId('microsoft.monitor/accounts', parameters('workspace_name'))).properties.metrics.prometheusQueryEndpoint]"
+        "value": "[reference(resourceId('microsoft.monitor/accounts', parameters('workspace_name'))).metrics.prometheusQueryEndpoint]"
       }
     }
 }
