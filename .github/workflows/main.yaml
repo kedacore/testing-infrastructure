@@ -25,7 +25,7 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_USE_OIDC: true
       TF_VAR_azure_resource_group_name: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
-      GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+      GITHUB_TOKEN: ${{ secrets.GH_AUTOMATION_PAT }}
       GITHUB_OWNER: kedacore
 
     steps:
