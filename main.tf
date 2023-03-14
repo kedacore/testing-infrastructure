@@ -224,19 +224,14 @@ module "github_secrets" {
       name  = "TF_AZURE_APP_INSIGHTS_NAME"
       value = module.azure_monitor_stack.insights_name
     },
-    // TO BE DELETED ONCE https://github.com/kedacore/keda/pull/4200 is merged
     {
-      name  = "TF_AZURE_APP_INSIGHTS_CONNECTION_STRING"
-      value = module.azure_monitor_stack.connection_string
+      name  = "TF_AZURE_MANAGED_PROMETHEUS_QUERY_ENDPOINT"
+      value = module.azure_monitor_stack.azure_monitor_prometheus_query_endpoint
     },
     {
       name  = "TF_AZURE_LOG_ANALYTICS_WORKSPACE_ID"
       value = module.azure_monitor_stack.log_analytics_workspace_id
     },
-    # {
-    #   name  = "TF_AZURE_MANAGED_PROMETHEUS_QUERY_ENDPOINT"
-    #   value = module.azure_monitor_stack.azure_monitor_prometheus_query_endpoint
-    # },
     {
       name  = "TF_AZURE_SERVICE_BUS_CONNECTION_STRING"
       value = module.azure_servicebus_namespace.connection_string
