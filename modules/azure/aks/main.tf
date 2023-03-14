@@ -45,6 +45,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   tags = var.tags
+
+  lifecycle {
+    ignore_changes = [
+      default_node_pool.node_count
+    ]
+  }
 }
 
 resource "azurerm_federated_identity_credential" "msi_federation" {
