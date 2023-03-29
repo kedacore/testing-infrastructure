@@ -63,12 +63,15 @@ jobs:
       id: fmt
       run: terraform fmt -recursive -check
       continue-on-error: true
+      working-directory: terraform
 
     - name: Init TFLint
       run: tflint --init
+      working-directory: terraform
 
     - name: Run TFLint
       run: tflint -f compact
+      working-directory: terraform
 
     - name: Terraform Init
       id: init
@@ -79,15 +82,18 @@ jobs:
         -backend-config=key=${{ secrets.BACKEND_STORAGE_KEY}} \
         -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}} \
         -backend-config=subscription_id="$ARM_SUBSCRIPTION_ID"
+      working-directory: terraform
 
     - name: Terraform Validate
       id: validate
       run: terraform validate -no-color
+      working-directory: terraform
 
     - name: Terraform Plan
       id: plan
       run: terraform plan -no-color -input=false
       continue-on-error: true
+      working-directory: terraform
 
     - name: Create the plan summary
       uses: actions/github-script@v6

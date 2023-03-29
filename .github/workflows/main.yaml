@@ -61,9 +61,12 @@ jobs:
         -backend-config=container_name=${{ secrets.BACKEND_STORAGE_CONTAINER_NAME}} \
         -backend-config=key=${{ secrets.BACKEND_STORAGE_KEY}} \
         -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}}
+      working-directory: terraform
 
     - name: Terraform Plan
       run: terraform plan -out=plan.tfplan
+      working-directory: terraform
 
     - name: Terraform Apply
       run: terraform apply -input=false -auto-approve plan.tfplan
+      working-directory: terraform
