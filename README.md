@@ -1,8 +1,13 @@
 # KEDA Testing infrastructure
 
-This repository is used to generated all the infrastucture for e2e tests in kedacore.
+This repository is used to generated all the infrastructure for e2e tests in kedacore.
 
-The infrastucture is divided in different modules grouped by cloud provider, which generate as outputs the required secrets that we need to add as secrets in kedacore.
+Currently, 2 different parts are stored here:
+
+- GitHub Actions runner provision script (`./runners`)
+- Terraform for cloud infrastructure (`./terraform`)
+
+The (terraform generated) infrastructure is divided in different modules grouped by cloud provider, which generate as outputs the required secrets that we need to add as secrets in kedacore.
 
 We use this layout:
 
@@ -15,7 +20,7 @@ We use this layout:
     -> .....
 ```
 
-The `root` directory containis the `.tf` files where every module is added and the global variables that every module needs. This part is also responsible of persisting the state in the backend (`azurerm`).
+The `root` directory contains the `.tf` files where every module is added and the global variables that every module needs. This part is also responsible of persisting the state in the backend (`azurerm`).
 
 ## Prerequisites:
 
