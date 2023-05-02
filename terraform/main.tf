@@ -57,7 +57,7 @@ module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
   kubernetes_version  = "1.25"
-  cluster_name        = pr_cluster_name
+  cluster_name        = local.pr_cluster_name
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name
