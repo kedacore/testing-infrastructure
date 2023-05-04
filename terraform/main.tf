@@ -181,7 +181,8 @@ module "azure_servicebus_namespace" {
 module "azure_servicebus_namespace_alternative" {
   source              = "./modules/azure/service-bus"
   resource_group_name = var.azure_resource_group_name
-  unique_project_name = "${var.unique_project_name}-alt"
+  unique_project_name = var.unique_project_name
+  service_bus_suffix  = "-alt"
   service_bus_admin_identities = [
     module.azuread_applications.identity_2
   ]

@@ -18,3 +18,9 @@ variable "service_bus_admin_identities" {
   description = "Azure Service Bus Data Owner identities"
   default     = []
 }
+
+variable "service_bus_suffix" {
+  type        = string
+  description = "Suffix to append at the end of the name"
+  default     = ""
+}
