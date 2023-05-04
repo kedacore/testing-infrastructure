@@ -14,11 +14,11 @@ module "gcp_iam" {
   source = "./modules/gcp/iam"
   identity_providers = [
     {
-      provider_name   = local.pr_cluster_name
+      provider_name   = module.azure_aks_pr.cluster_full_name
       oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
     },
     {
-      provider_name   = local.main_cluster_name
+      provider_name   = module.azure_aks_nightly.cluster_full_name
       oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
     },
   ]
@@ -34,11 +34,11 @@ module "aws_iam" {
   tags   = local.tags
   identity_providers = [
     {
-      role_name       = "${local.pr_cluster_name}-role"
+      role_name       = "${module.azure_aks_pr.cluster_full_name}-role"
       oidc_issuer_url = module.azure_aks_pr.oidc_issuer_url
     },
     {
-      role_name       = "${local.main_cluster_name}-role"
+      role_name       = "${module.azure_aks_nightly.cluster_full_name}-role"
       oidc_issuer_url = module.azure_aks_nightly.oidc_issuer_url
     },
   ]
