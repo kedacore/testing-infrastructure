@@ -4,7 +4,8 @@ provider "azurerm" {
 }
 
 locals {
-  azure_monitor_workspace_connection_name = "${var.cluster_name}-amw"
+  cluster_full_name                       = "${var.unique_project_name}-e2e-${var.cluster_name}"
+  azure_monitor_workspace_connection_name = "${local.cluster_full_name}-amw"
   dce_name                                = "${local.azure_monitor_workspace_connection_name}-dce"
   dcr_name                                = "${local.azure_monitor_workspace_connection_name}-dcr"
   dcra_name                               = "${local.azure_monitor_workspace_connection_name}-dcra"
@@ -22,8 +23,8 @@ data "azurerm_kubernetes_service_versions" "current" {
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = var.cluster_name
-  dns_prefix          = var.cluster_name
+  name                = local.cluster_full_name
+  dns_prefix          = local.cluster_full_name
   location            = data.azurerm_resource_group.rg.location
   resource_group_name = data.azurerm_resource_group.rg.name
   kubernetes_version  = data.azurerm_kubernetes_service_versions.current.latest_version
@@ -55,7 +56,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
 resource "azurerm_federated_identity_credential" "msi_federation" {
   count               = length(var.workload_identity_applications)
-  name                = "msi_federation-${var.cluster_name}-${var.workload_identity_applications[count.index].name}"
+  name                = "msi_federation-${local.cluster_full_name}-${var.workload_identity_applications[count.index].name}"
   resource_group_name = data.azurerm_resource_group.rg.name
   audience            = ["api://AzureADTokenExchange"]
   issuer              = azurerm_kubernetes_cluster.aks.oidc_issuer_url

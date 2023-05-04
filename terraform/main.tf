@@ -4,8 +4,8 @@ locals {
     Environment = "e2e"
   }
 
-  pr_cluster_name   = "keda-e2e-cluster-pr"
-  main_cluster_name = "keda-e2e-cluster-nightly"
+  pr_cluster_name   = "${var.unique_project_name}-e2e-cluster-pr"
+  main_cluster_name = "${var.unique_project_name}-e2e-cluster-nightly"
 }
 
 // ====== GCP ======
@@ -51,6 +51,7 @@ data "azurerm_client_config" "current" {}
 module "azuread_applications" {
   source              = "./modules/azure/managed_identities"
   resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
 }
 
 module "azure_aks_pr" {
@@ -58,6 +59,7 @@ module "azure_aks_pr" {
   resource_group_name = var.azure_resource_group_name
   kubernetes_version  = "1.26"
   cluster_name        = local.pr_cluster_name
+  unique_project_name = var.unique_project_name
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name
@@ -79,6 +81,7 @@ module "azure_aks_nightly" {
   resource_group_name = var.azure_resource_group_name
   kubernetes_version  = "1.26"
   cluster_name        = local.main_cluster_name
+  unique_project_name = var.unique_project_name
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name

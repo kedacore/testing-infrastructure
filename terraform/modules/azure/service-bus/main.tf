@@ -4,8 +4,8 @@ provider "azurerm" {
 }
 
 locals {
-  service_bus_namespace_name     = "${var.unique_project_name}-servicebus-namespace"
-  service_bus_authorization_rule = "${var.unique_project_name}-manage"
+  service_bus_namespace_name     = "${var.unique_project_name}-e2e-servicebus-namespace"
+  service_bus_authorization_rule = "${var.unique_project_name}-e2e-manage"
 }
 
 data "azurerm_resource_group" "rg" {

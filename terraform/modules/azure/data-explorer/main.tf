@@ -4,9 +4,9 @@ provider "azurerm" {
 }
 
 locals {
-  kusto_cluster_name          = "${var.unique_project_name}cluster"
-  kusto_database_name         = "${var.unique_project_name}-database"
-  kusto_role_assignement_name = "${var.unique_project_name}-role-assignement"
+  kusto_cluster_name          = "${var.unique_project_name}-e2e-cluster"
+  kusto_database_name         = "${var.unique_project_name}-e2e-database"
+  kusto_role_assignement_name = "${var.unique_project_name}-e2e-role-assignement"
 }
 
 data "azurerm_resource_group" "rg" {

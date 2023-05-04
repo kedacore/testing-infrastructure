@@ -1,5 +1,6 @@
 terraform {
   backend "azurerm" {
+    key = "keda.tfstate"
   }
 
   required_version = ">= 1.3.0"

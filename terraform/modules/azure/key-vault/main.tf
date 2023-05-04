@@ -8,7 +8,7 @@ provider "azurerm" {
 }
 
 locals {
-  key_vault_name = "${var.unique_project_name}-key-vault"
+  key_vault_name = "${var.unique_project_name}-e2e-key-vault"
 }
 
 data "azurerm_resource_group" "rg" {

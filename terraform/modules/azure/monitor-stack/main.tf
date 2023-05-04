@@ -4,9 +4,9 @@ provider "azurerm" {
 }
 
 locals {
-  app_insights_name            = "${var.unique_project_name}-app-insights"
-  log_analytics_workspace_name = "${var.unique_project_name}-log-analytics"
-  azure_monitor_workspace_name = "${var.unique_project_name}-monitor-workspace"
+  app_insights_name            = "${var.unique_project_name}-e2e-app-insights"
+  log_analytics_workspace_name = "${var.unique_project_name}-e2e-log-analytics"
+  azure_monitor_workspace_name = "${var.unique_project_name}-e2e-monitor-workspace"
   azure_monitor_workspace      = jsondecode(azurerm_resource_group_template_deployment.azure_monitor_workspace.output_content)
 }
 

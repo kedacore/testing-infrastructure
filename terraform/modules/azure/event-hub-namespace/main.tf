@@ -4,7 +4,7 @@ provider "azurerm" {
 }
 
 locals {
-  event_hub_name = "${var.unique_project_name}-event-hub-namespace"
+  event_hub_name = "${var.unique_project_name}-e2e-event-hub-namespace"
 }
 
 data "azurerm_resource_group" "rg" {
