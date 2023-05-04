@@ -4,8 +4,8 @@ locals {
     Environment = "e2e"
   }
 
-  pr_cluster_name   = "${var.unique_project_name}-e2e-cluster-pr"
-  main_cluster_name = "${var.unique_project_name}-e2e-cluster-nightly"
+  pr_cluster_name   = "cluster-pr"
+  main_cluster_name = "cluster-nightly"
 }
 
 // ====== GCP ======
