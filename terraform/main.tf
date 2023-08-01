@@ -13,6 +13,7 @@ locals {
 module "gcp_apis" {
   source = "./modules/gcp/apis"
   apis_to_enable = [
+    "appengine.googleapis.com",
     "cloudtasks.googleapis.com"
   ]
 }
