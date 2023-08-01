@@ -7,7 +7,7 @@ terraform {
 }
 
 locals {
-  application_name        = "${var.unique_project_name}-${var.application_purpose}"
+  application_name       = "${var.unique_project_name}-${var.application_purpose}"
   application_identifier = "api://${local.application_name}"
 }
 
@@ -54,16 +54,16 @@ resource "azuread_application" "oauth2_api" {
 
 resource "azuread_service_principal" "oauth2_api" {
   application_id = azuread_application.oauth2_api.application_id
-  use_existing = true
+  use_existing   = true
 }
 
 locals {
   # assign each role to each identity requested
   roles_to_principals = flatten([
-    for role,_ in var.app_roles : [
+    for role, _ in var.app_roles : [
       for identity in var.access_identities : {
         role_uuid_key = random_uuid.app_roles[role].id
-        principal_id = identity.principal_id
+        principal_id  = identity.principal_id
       }
     ]
   ])
