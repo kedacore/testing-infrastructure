@@ -10,6 +10,13 @@ locals {
 
 // ====== GCP ======
 
+module "gcp_apis" {
+  source = "./modules/gcp/apis"
+  apis_to_enable = [
+    "cloudtasks.googleapis.com"
+  ]
+}
+
 module "gcp_iam" {
   source = "./modules/gcp/iam"
   identity_providers = [
@@ -23,6 +30,7 @@ module "gcp_iam" {
     },
   ]
 }
+
 
 // ====== AWS ======
 
