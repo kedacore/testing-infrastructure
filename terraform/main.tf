@@ -14,7 +14,14 @@ module "gcp_apis" {
   source = "./modules/gcp/apis"
   apis_to_enable = [
     "appengine.googleapis.com",
-    "cloudtasks.googleapis.com"
+    "cloudresourcemanager.googleapis.com",
+    "cloudtasks.googleapis.com",
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "monitoring.googleapis.com",
+    "pubsub.googleapis.com",
+    "serviceusage.googleapis.com",
+    "sts.googleapis.com"
   ]
 }
 
