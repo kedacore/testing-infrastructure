@@ -7,7 +7,7 @@ locals {
 }
 
 resource "google_project_service" "apis" {
-  for = local.apis
-  project = data.google_project.project.project_id
-  service = each.key
+  for_each = local.apis
+  project  = data.google_project.project.project_id
+  service  = each.key
 }
