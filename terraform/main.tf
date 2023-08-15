@@ -73,7 +73,7 @@ module "azuread_applications" {
 module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.26"
+  kubernetes_version  = "1.27"
   cluster_name        = local.pr_cluster_name
   unique_project_name = var.unique_project_name
 
@@ -95,7 +95,7 @@ module "azure_aks_pr" {
 module "azure_aks_nightly" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.26"
+  kubernetes_version  = "1.27"
   cluster_name        = local.main_cluster_name
   unique_project_name = var.unique_project_name
 
