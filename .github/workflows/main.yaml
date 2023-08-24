@@ -26,6 +26,7 @@ jobs:
       ARM_USE_OIDC: true
       GITHUB_TOKEN: ${{ secrets.GH_AUTOMATION_PAT }}
       GITHUB_OWNER: kedacore
+      GRAFANA_CLOUD_API_KEY: ${{ secrets.GRAFANA_CLOUD_API_KEY }}
 
     steps:
     - name: Checkout
