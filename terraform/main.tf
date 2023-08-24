@@ -8,6 +8,13 @@ locals {
   main_cluster_name = "cluster-nightly"
 }
 
+// ====== GRAFANA CLOUD =======
+
+module "grafana_cloud" {
+  source = "./modules/grafana/iam"
+  slug   = var.grafana_slug
+}
+
 // ====== GCP ======
 
 module "gcp_apis" {
@@ -350,6 +357,25 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_RABBIT_API_APPLICATION_ID"
       value = module.azure_rabbitmq_app_registration.application_id
+    },
+  ]
+}
+
+module "github__performance_secrets" {
+  source     = "./modules/github/secrets"
+  repository = var.performance_repository
+  secrets = [
+    {
+      name  = "TF_GRAFANA_PROMETHEUS_URL"
+      value = module.grafana_cloud.prometheus_url
+    },
+    {
+      name  = "TF_GRAFANA_PROMETHEUS_USER"
+      value = module.grafana_cloud.prometheus_user
+    },
+    {
+      name  = "TF_GRAFANA_PROMETHEUS_PASSWORD"
+      value = module.grafana_cloud.prometheus_password
     },
   ]
 }
