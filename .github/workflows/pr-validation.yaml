@@ -46,7 +46,7 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
         aws-region: eu-west-2
-
+r
     - name: Log into GCP using OIDC
       uses: google-github-actions/auth@v1
       with:
@@ -71,6 +71,8 @@ jobs:
 
     - name: Run TFLint
       run: tflint -f compact
+      id: lint
+      continue-on-error: true
       working-directory: terraform
 
     - name: Terraform Init
@@ -135,6 +137,14 @@ jobs:
     - name: Write the step summary
       if: always()
       run: cat summary.md >> $GITHUB_STEP_SUMMARY
+
+    - name: Terraform Format Status
+      if: steps.fmt.outcome == 'failure'
+      run: exit 1
+
+    - name: Terraform Lint Status
+      if: steps.lint.outcome == 'failure'
+      run: exit 1
 
     - name: Terraform Plan Status
       if: steps.plan.outcome == 'failure'
