@@ -31,6 +31,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
   oidc_issuer_enabled = true
   node_resource_group = var.node_resource_group_name
 
+  node_os_channel_upgrade = "Unmanaged"
+
   monitor_metrics {}
 
   default_node_pool {
