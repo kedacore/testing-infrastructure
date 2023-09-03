@@ -18,9 +18,10 @@ jobs:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      ARM_USE_OIDC: true
+      ARM_USE_OIDC: true      
       GITHUB_TOKEN: ${{ secrets.GH_AUTOMATION_PAT }}
       GITHUB_OWNER: kedacore
+      GRAFANA_CLOUD_API_KEY: ${{ secrets.GRAFANA_CLOUD_API_KEY }}
 
     steps:
     - name: Checkout
@@ -45,7 +46,7 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
         aws-region: eu-west-2
-
+r
     - name: Log into GCP using OIDC
       uses: google-github-actions/auth@v1
       with:
@@ -70,6 +71,8 @@ jobs:
 
     - name: Run TFLint
       run: tflint -f compact
+      id: lint
+      continue-on-error: true
       working-directory: terraform
 
     - name: Terraform Init
@@ -134,6 +137,14 @@ jobs:
     - name: Write the step summary
       if: always()
       run: cat summary.md >> $GITHUB_STEP_SUMMARY
+
+    - name: Terraform Format Status
+      if: steps.fmt.outcome == 'failure'
+      run: exit 1
+
+    - name: Terraform Lint Status
+      if: steps.lint.outcome == 'failure'
+      run: exit 1
 
     - name: Terraform Plan Status
       if: steps.plan.outcome == 'failure'
