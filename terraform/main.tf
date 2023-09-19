@@ -28,7 +28,8 @@ module "gcp_apis" {
     "monitoring.googleapis.com",
     "pubsub.googleapis.com",
     "serviceusage.googleapis.com",
-    "sts.googleapis.com"
+    "sts.googleapis.com",
+    "secretmanager.googleapis.com",
   ]
 }
 
