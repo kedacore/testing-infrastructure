@@ -343,6 +343,10 @@ module "github_secrets" {
       value = data.aws_caller_identity.current.account_id
     },
     {
+      name  = "TF_AWS_WORKLOAD_ROLE"
+      value = module.aws_iam.workload_role_arn
+    },
+    {
       name  = "TF_GCP_SA_CREDENTIALS"
       value = module.gcp_iam.e2e_user_credentials
     },
