@@ -168,8 +168,8 @@ EOF
 }
 
 resource "aws_iam_role" "workload_role" {
-  name  = local.workload_role_name
-  tags  = var.tags
+  name = local.workload_role_name
+  tags = var.tags
 
   assume_role_policy = <<EOF
 {
@@ -206,7 +206,7 @@ resource "aws_iam_policy" "workload_role_policy" {
             "Effect": "Allow",
             "Action": "sqs:*",
             "Resource": "arn:aws:sqs:asume-role-queue-*:589761922677:*"
-        },
+        }
     ]
 }
 EOF
