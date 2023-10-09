@@ -1,3 +1,8 @@
+
+locals {
+  workload_role_name = "keda-workload-1"
+}
+
 resource "aws_iam_user" "e2e_test" {
   name = "e2e-test-user"
   path = "/"
@@ -134,6 +139,11 @@ resource "aws_iam_policy" "policy" {
             "Resource": "arn:aws:sqs:*:589761922677:*"
         },
         {
+            "Effect": "Deny",
+            "Action": "sqs:*",
+            "Resource": "arn:aws:sqs:asume-role-queue-*:589761922677:*"
+        },
+        {
             "Effect": "Allow",
             "Action": "cloudwatch:*",
             "Resource": [
@@ -151,6 +161,56 @@ resource "aws_iam_policy" "policy" {
                 "arn:aws:kinesis:*:589761922677:*/*/consumer/*:*",
                 "arn:aws:kinesis:*:589761922677:stream/*"
             ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": "sts:AssumeRole",
+          "Resource": "arn:aws:iam::*:role/${local.workload_role_name}"
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_role" "workload_role" {
+  name = local.workload_role_name
+  tags = var.tags
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "workload_role_assignements" {
+  role       = aws_iam_role.workload_role.name
+  policy_arn = aws_iam_policy.workload_role_policy.arn
+}
+
+
+resource "aws_iam_policy" "workload_role_policy" {
+  name = "e2e-test-assume-role-policy"
+  tags = var.tags
+
+  policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "sqs:*",
+            "Resource": "arn:aws:sqs:asume-role-queue-*:589761922677:*"
         }
     ]
 }
