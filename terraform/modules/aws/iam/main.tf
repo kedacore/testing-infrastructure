@@ -136,7 +136,12 @@ resource "aws_iam_policy" "policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:regular-queue-*:589761922677:*"
+            "Resource": "arn:aws:sqs:*:589761922677:*",
+        },
+        {
+            "Effect": "Deny",
+            "Action": "sqs:*",
+            "Resource": "arn:aws:sqs:asume-role-queue-*:589761922677:*"
         },
         {
             "Effect": "Allow",
