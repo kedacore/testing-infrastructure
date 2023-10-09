@@ -136,7 +136,7 @@ resource "aws_iam_policy" "policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:*",
+            "Resource": "arn:aws:sqs:*:589761922677:*"
         },
         {
             "Effect": "Deny",
