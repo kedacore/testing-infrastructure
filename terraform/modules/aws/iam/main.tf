@@ -1,6 +1,17 @@
 
 locals {
   workload_role_name = "keda-workload-1"
+  workload_trust_relations = jsonencode(
+    [for role in aws_iam_role.roles :
+      {
+        Sid : "",
+        Effect : "Allow"
+        Action : "sts:AssumeRole",
+        Principal : {
+          "AWS" : role.arn
+        }
+    }]
+  )
 }
 
 resource "aws_iam_user" "e2e_test" {
@@ -141,7 +152,7 @@ resource "aws_iam_policy" "policy" {
         {
             "Effect": "Deny",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:asume-role-queue-*:589761922677:*"
+            "Resource": "arn:aws:sqs:*:589761922677:asume-role-queue-*"
         },
         {
             "Effect": "Allow",
@@ -206,13 +217,7 @@ resource "aws_iam_policy" "workload_role_policy" {
   policy = <<EOF
 {
     "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:asume-role-queue-*:589761922677:*"
-        }
-    ]
+    "Statement": ${local.workload_trust_relations}
 }
 EOF
 }
