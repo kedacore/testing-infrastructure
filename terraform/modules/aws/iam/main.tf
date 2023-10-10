@@ -155,7 +155,7 @@ resource "aws_iam_policy" "policy" {
         },
         {
             "Effect": "Deny",
-            "Action": "sqs:*",
+            "Action": "sqs:GetQueueAttributes",
             "Resource": [
                 "arn:aws:sqs:*:589761922677:asume-role-queue-*"
             ]
