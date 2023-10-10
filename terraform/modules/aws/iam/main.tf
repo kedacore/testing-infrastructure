@@ -190,16 +190,7 @@ resource "aws_iam_role" "workload_role" {
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
+  "Statement": ${local.workload_trust_relations}
 }
 EOF
 }
@@ -217,7 +208,13 @@ resource "aws_iam_policy" "workload_role_policy" {
   policy = <<EOF
 {
     "Version": "2012-10-17",
-    "Statement": ${local.workload_trust_relations}
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "sqs:*",
+            "Resource": "arn:aws:sqs:*:589761922677:asume-role-queue-*"
+        }
+    ]
 }
 EOF
 }
