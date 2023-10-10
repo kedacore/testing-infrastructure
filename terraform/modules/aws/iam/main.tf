@@ -91,7 +91,9 @@ resource "aws_iam_policy" "policy" {
         {
             "Effect": "Allow",
             "Action": "dynamodb:*",
-            "Resource": "arn:aws:dynamodb:*:589761922677:table/*"
+            "Resource": [
+                "arn:aws:dynamodb:*:589761922677:table/*"
+            ]
         },
         {
             "Effect": "Allow",
@@ -147,12 +149,16 @@ resource "aws_iam_policy" "policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:*"
+            "Resource": [
+                "arn:aws:sqs:*:589761922677:*"
+            ]
         },
         {
             "Effect": "Deny",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:asume-role-queue-*"
+            "Resource": [
+                "arn:aws:sqs:*:589761922677:asume-role-queue-*"
+            ]
         },
         {
             "Effect": "Allow",
@@ -174,9 +180,11 @@ resource "aws_iam_policy" "policy" {
             ]
         },
         {
-          "Effect": "Allow",
-          "Action": "sts:AssumeRole",
-          "Resource": "arn:aws:iam::*:role/${local.workload_role_name}"
+            "Effect": "Allow",
+            "Action": "sts:AssumeRole",
+            "Resource": [
+                "arn:aws:iam::*:role/${local.workload_role_name}"
+            ]
         }
     ]
 }
