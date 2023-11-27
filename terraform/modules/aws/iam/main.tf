@@ -142,6 +142,7 @@ resource "aws_iam_policy" "policy" {
                 "dynamodb:ListGlobalTables",
                 "cloudwatch:ListMetricStreams",
                 "dynamodb:DescribeReservedCapacity",
+                "secretsmanager:*",
                 "kinesis:UpdateShardCount"
             ],
             "Resource": "*"
