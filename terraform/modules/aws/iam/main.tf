@@ -160,7 +160,7 @@ resource "aws_iam_policy" "policy" {
             "Effect": "Deny",
             "Action": "sqs:GetQueueAttributes",
             "Resource": [
-                "arn:aws:sqs:*:589761922677:asume-role-queue-*"
+                "arn:aws:sqs:*:589761922677:assume-role-queue-*"
             ]
         },
         {
@@ -223,7 +223,7 @@ resource "aws_iam_policy" "workload_role_policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:asume-role-queue-*"
+            "Resource": "arn:aws:sqs:*:589761922677:assume-role-queue-*"
         }
     ]
 }
