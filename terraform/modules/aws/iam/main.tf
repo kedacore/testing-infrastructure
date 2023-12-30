@@ -143,6 +143,9 @@ resource "aws_iam_policy" "policy" {
                 "dynamodb:ListGlobalTables",
                 "cloudwatch:ListMetricStreams",
                 "dynamodb:DescribeReservedCapacity",
+                "secretsmanager:CreateSecret",
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DeleteSecret",
                 "kinesis:UpdateShardCount"
             ],
             "Resource": "*"
@@ -156,9 +159,9 @@ resource "aws_iam_policy" "policy" {
         },
         {
             "Effect": "Deny",
-            "Action": "sqs:*",
+            "Action": "sqs:GetQueueAttributes",
             "Resource": [
-                "arn:aws:sqs:*:589761922677:asume-role-*"
+                "arn:aws:sqs:*:589761922677:assume-role-*"
             ]
         },
         {
@@ -260,7 +263,7 @@ resource "aws_iam_policy" "workload2_role_policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:asume-role-workload2-queue-*"
+            "Resource": "arn:aws:sqs:*:589761922677:assume-role-workload2-queue-*"
         }
     ]
 }
