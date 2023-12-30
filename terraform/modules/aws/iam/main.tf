@@ -1,6 +1,7 @@
 
 locals {
-  workload_role_name = "keda-workload-1"
+  workload1_role_name   = "keda-workload-1"
+  workload2_role_prefix = "workload-2"
   workload_trust_relations = jsonencode(
     [for role in aws_iam_role.roles :
       {
@@ -160,7 +161,7 @@ resource "aws_iam_policy" "policy" {
             "Effect": "Deny",
             "Action": "sqs:GetQueueAttributes",
             "Resource": [
-                "arn:aws:sqs:*:589761922677:assume-role-queue-*"
+                "arn:aws:sqs:*:589761922677:assume-role-*"
             ]
         },
         {
@@ -186,7 +187,7 @@ resource "aws_iam_policy" "policy" {
             "Effect": "Allow",
             "Action": "sts:AssumeRole",
             "Resource": [
-                "arn:aws:iam::*:role/${local.workload_role_name}"
+                "arn:aws:iam::*:role/${local.workload1_role_name}"
             ]
         }
     ]
@@ -194,8 +195,8 @@ resource "aws_iam_policy" "policy" {
 EOF
 }
 
-resource "aws_iam_role" "workload_role" {
-  name = local.workload_role_name
+resource "aws_iam_role" "workload1_role" {
+  name = local.workload1_role_name
   tags = var.tags
 
   assume_role_policy = <<EOF
@@ -206,14 +207,35 @@ resource "aws_iam_role" "workload_role" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "workload_role_assignements" {
-  role       = aws_iam_role.workload_role.name
-  policy_arn = aws_iam_policy.workload_role_policy.arn
+resource "aws_iam_role" "workload2_roles" {
+  count = length(aws_iam_openid_connect_provider.oidc_providers)
+  name  = "${local.workload2_role_prefix}-${var.identity_providers[count.index].role_name}"
+  tags  = var.tags
+
+  assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "${aws_iam_openid_connect_provider.oidc_providers[count.index].arn}"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "${replace(var.identity_providers[count.index].oidc_issuer_url, "https://", "")}:sub": "system:serviceaccount:keda:keda-operator",
+                    "${replace(var.identity_providers[count.index].oidc_issuer_url, "https://", "")}:aud": "sts.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+EOF
 }
 
-
-resource "aws_iam_policy" "workload_role_policy" {
-  name = "e2e-test-assume-role-policy"
+resource "aws_iam_policy" "workload1_role_policy" {
+  name = "e2e-test-assume-role-policy-workload1"
   tags = var.tags
 
   policy = <<EOF
@@ -223,9 +245,38 @@ resource "aws_iam_policy" "workload_role_policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:assume-role-queue-*"
+            "Resource": "arn:aws:sqs:*:589761922677:asume-role-workload1-queue-*"
         }
     ]
 }
 EOF
+}
+
+resource "aws_iam_policy" "workload2_role_policy" {
+  name = "e2e-test-assume-role-policy-workload2"
+  tags = var.tags
+
+  policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "sqs:*",
+            "Resource": "arn:aws:sqs:*:589761922677:assume-role-workload2-queue-*"
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "workload1_role_assignements" {
+  role       = aws_iam_role.workload1_role.name
+  policy_arn = aws_iam_policy.workload1_role_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "workload2_role_assignements" {
+  count      = length(aws_iam_openid_connect_provider.oidc_providers)
+  role       = aws_iam_role.workload2_roles[count.index].name
+  policy_arn = aws_iam_policy.workload2_role_policy.arn
 }
