@@ -245,7 +245,7 @@ resource "aws_iam_policy" "workload1_role_policy" {
         {
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:asume-role-workload1-queue-*"
+            "Resource": "arn:aws:sqs:*:589761922677:assume-role-workload1-queue-*"
         }
     ]
 }
