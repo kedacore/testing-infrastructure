@@ -1,17 +1,24 @@
 
 locals {
-  workload1_role_name   = "keda-workload-1"
-  workload2_role_prefix = "workload-2"
-  workload_trust_relations = jsonencode(
-    [for role in aws_iam_role.roles :
+  keda_role_name      = "keda-operator"
+  workload1_role_name = "keda-workload-1"
+  workload2_role_name = "keda-workload-2"
+  keda_clusters_trusted_relations = jsonencode(
+    [for index, provider in aws_iam_openid_connect_provider.oidc_providers :
       {
-        Sid : "",
-        Effect : "Allow"
-        Action : "sts:AssumeRole",
+        Effect : "Allow",
         Principal : {
-          "AWS" : role.arn
+          "Federated" : "${provider.arn}"
+        },
+        Action : "sts:AssumeRoleWithWebIdentity",
+        Condition : {
+          StringEquals : {
+            "${replace(var.identity_providers[index].oidc_issuer_url, "https://", "")}:sub" : "system:serviceaccount:keda:keda-operator",
+            "${replace(var.identity_providers[index].oidc_issuer_url, "https://", "")}:aud" : "sts.amazonaws.com"
+          }
         }
-    }]
+      }
+    ]
   )
 }
 
@@ -47,7 +54,24 @@ resource "aws_iam_openid_connect_provider" "oidc_providers" {
   tags            = var.tags
 }
 
+resource "aws_iam_role" "keda_role" {
+  name = local.keda_role_name
+  tags = var.tags
 
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": ${local.keda_clusters_trusted_relations}
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "keda_role_assignement" {
+  role       = aws_iam_role.keda_role.name
+  policy_arn = aws_iam_policy.policy.arn
+}
+
+// TO REMOVE AFTER MERGING https://github.com/kedacore/keda/pull/5061
 resource "aws_iam_role" "roles" {
   count = length(aws_iam_openid_connect_provider.oidc_providers)
   name  = var.identity_providers[count.index].role_name
@@ -80,6 +104,7 @@ resource "aws_iam_role_policy_attachment" "role_assignements" {
   role       = aws_iam_role.roles[count.index].name
   policy_arn = aws_iam_policy.policy.arn
 }
+// END TO REMOVE
 
 resource "aws_iam_policy" "policy" {
   name = "e2e-test-policy"
@@ -202,34 +227,26 @@ resource "aws_iam_role" "workload1_role" {
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
-  "Statement": ${local.workload_trust_relations}
+  "Statement": {
+    "Sid" : "",
+        "Effect" : "Allow"
+        "Action" : "sts:AssumeRole",
+        "Principal" : {
+          "AWS" : ${aws_iam_role.keda_role.arn}
+        }
+  }
 }
 EOF
 }
 
-resource "aws_iam_role" "workload2_roles" {
-  count = length(aws_iam_openid_connect_provider.oidc_providers)
-  name  = "${local.workload2_role_prefix}-${var.identity_providers[count.index].role_name}"
-  tags  = var.tags
+resource "aws_iam_role" "workload2_role" {
+  name = local.workload2_role_name
+  tags = var.tags
 
   assume_role_policy = <<EOF
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Federated": "${aws_iam_openid_connect_provider.oidc_providers[count.index].arn}"
-            },
-            "Action": "sts:AssumeRoleWithWebIdentity",
-            "Condition": {
-                "StringEquals": {
-                    "${replace(var.identity_providers[count.index].oidc_issuer_url, "https://", "")}:sub": "system:serviceaccount:keda:keda-operator",
-                    "${replace(var.identity_providers[count.index].oidc_issuer_url, "https://", "")}:aud": "sts.amazonaws.com"
-                }
-            }
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": ${local.keda_clusters_trusted_relations}
 }
 EOF
 }
@@ -270,13 +287,12 @@ resource "aws_iam_policy" "workload2_role_policy" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "workload1_role_assignements" {
+resource "aws_iam_role_policy_attachment" "workload1_role_assignement" {
   role       = aws_iam_role.workload1_role.name
   policy_arn = aws_iam_policy.workload1_role_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "workload2_role_assignements" {
-  count      = length(aws_iam_openid_connect_provider.oidc_providers)
-  role       = aws_iam_role.workload2_roles[count.index].name
+resource "aws_iam_role_policy_attachment" "workload2_role_assignement" {
+  role       = aws_iam_role.workload2_role.name
   policy_arn = aws_iam_policy.workload2_role_policy.arn
 }

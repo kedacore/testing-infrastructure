@@ -340,12 +340,21 @@ module "github_secrets" {
       value = data.aws_region.current.name
     },
     {
+      // TO REMOVE AFTER MERGING https://github.com/kedacore/keda/pull/5061
       name  = "TF_AWS_ACCOUNT_ID"
       value = data.aws_caller_identity.current.account_id
     },
     {
+      name  = "TF_AWS_KEDA_ROLE"
+      value = module.aws_iam.keda_role_arn
+    },
+    {
       name  = "TF_AWS_WORKLOAD1_ROLE"
       value = module.aws_iam.workload1_role_arn
+    },
+    {
+      name  = "TF_AWS_WORKLOAD2_ROLE"
+      value = module.aws_iam.workload2_role_arn
     },
     {
       name  = "TF_GCP_SA_CREDENTIALS"
