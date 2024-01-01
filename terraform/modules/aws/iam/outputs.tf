@@ -15,5 +15,5 @@ output "workload1_role_arn" {
 }
 
 output "workload2_role_arn" {
-  value = aws_iam_role.workloa2_role.arn
+  value = aws_iam_role.workload2_role.arn
 }
