@@ -261,8 +261,8 @@ resource "aws_iam_policy" "workload1_role_policy" {
     "Statement": [
         {
             "Effect": "Allow",
-            "Action": "sqs:*",
-            "Resource": "arn:aws:sqs:*:589761922677:asume-role-workload1-queue-*"
+            "Action": "sqs:GetQueueAttributes",
+            "Resource": "arn:aws:sqs:*:589761922677:assume-role-workload1-queue-*"
         }
     ]
 }
@@ -279,7 +279,7 @@ resource "aws_iam_policy" "workload2_role_policy" {
     "Statement": [
         {
             "Effect": "Allow",
-            "Action": "sqs:*",
+            "Action": "sqs:GetQueueAttributes",
             "Resource": "arn:aws:sqs:*:589761922677:assume-role-workload2-queue-*"
         }
     ]
