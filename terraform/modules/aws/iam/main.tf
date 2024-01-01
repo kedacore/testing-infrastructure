@@ -227,14 +227,16 @@ resource "aws_iam_role" "workload1_role" {
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
-  "Statement": {
-    "Sid" : "",
-    "Effect" : "Allow"
-    "Action" : "sts:AssumeRole",
-    "Principal" : {
-      "AWS" : "${aws_iam_role.keda_role.arn}"
+  "Statement": [
+    {
+      "Sid" : "",
+      "Effect" : "Allow"
+      "Action" : "sts:AssumeRole",
+      "Principal" : {
+        "AWS" : "${aws_iam_role.keda_role.arn}"
+      }
     }
-  }
+  ]
 }
 EOF
 }
