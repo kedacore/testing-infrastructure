@@ -230,7 +230,7 @@ resource "aws_iam_role" "workload1_role" {
   "Statement": [
     {
       "Sid" : "",
-      "Effect" : "Allow"
+      "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
       "Principal" : {
         "AWS" : "${aws_iam_role.keda_role.arn}"
