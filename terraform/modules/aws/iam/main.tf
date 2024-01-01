@@ -287,12 +287,12 @@ resource "aws_iam_policy" "workload2_role_policy" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "workload1_role_assignements" {
+resource "aws_iam_role_policy_attachment" "workload1_role_assignement" {
   role       = aws_iam_role.workload1_role.name
   policy_arn = aws_iam_policy.workload1_role_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "workload2_role_assignements" {
+resource "aws_iam_role_policy_attachment" "workload2_role_assignement" {
   role       = aws_iam_role.workload2_role.name
   policy_arn = aws_iam_policy.workload2_role_policy.arn
 }
