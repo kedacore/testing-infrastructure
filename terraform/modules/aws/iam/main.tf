@@ -71,6 +71,10 @@ resource "aws_iam_role_policy_attachment" "keda_role_assignement" {
   policy_arn = aws_iam_policy.policy.arn
 }
 
+// This is the primary role to be used for almost all the
+// e2e tests. It allows any action over any (suported resource)
+// except over the assume role queues. This role also allows
+// to assume workload-1 role using sts:AssumeRole
 resource "aws_iam_policy" "policy" {
   name = "e2e-test-policy"
   tags = var.tags
@@ -88,7 +92,7 @@ resource "aws_iam_policy" "policy" {
                 "kinesis:*",
                 "sqs:*",
                 "secretsmanager:*",
-                "kms:*
+                "kms:*"
             ],
             "Resource": "*"
         },
