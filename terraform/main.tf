@@ -252,6 +252,12 @@ module "github_secrets" {
   repository = var.repository
   secrets = [
     {
+      name  = "TF_AZURE_EVENTHUB_NAMESPACE"
+      value = module.azure_event_hub_namespace.namespace_name
+    },
+    # Remove TF_AZURE_EVENTHBUS_MANAGEMENT_CONNECTION_STRING after 
+    # https://github.com/kedacore/keda/pull/5471 is merged
+    {
       name  = "TF_AZURE_EVENTHBUS_MANAGEMENT_CONNECTION_STRING"
       value = module.azure_event_hub_namespace.manage_connection_string
     },
