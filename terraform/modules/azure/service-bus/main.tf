@@ -6,6 +6,7 @@ provider "azurerm" {
 locals {
   service_bus_namespace_name     = "${var.unique_project_name}-e2e-servicebus-namespace${var.service_bus_suffix}"
   service_bus_authorization_rule = "${var.unique_project_name}-e2e-manage"
+  service_bus_topic_name = "${var.unique_project_name}-e2e-receive-event-grid-topic"
 }
 
 data "azurerm_resource_group" "rg" {
@@ -18,6 +19,11 @@ resource "azurerm_servicebus_namespace" "namespace" {
   resource_group_name = data.azurerm_resource_group.rg.name
   sku                 = "Standard"
   tags                = var.tags
+}
+
+resource "azurerm_servicebus_topic" "topic" {
+  name         = local.service_bus_topic_name
+  namespace_id = azurerm_servicebus_namespace.namespace.id
 }
 
 resource "azurerm_servicebus_namespace_authorization_rule" "manage" {
