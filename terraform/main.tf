@@ -225,9 +225,9 @@ module "azure_servicebus_namespace_event_grid" {
 }
 
 module "azurerm_eventgrid_topic" {
-  source              = "./modules/azure/event-grid"
-  resource_group_name = var.azure_resource_group_name
-  unique_project_name = var.unique_project_name
+  source               = "./modules/azure/event-grid"
+  resource_group_name  = var.azure_resource_group_name
+  unique_project_name  = var.unique_project_name
   service_bus_topic_id = module.azure_servicebus_namespace_event_grid.event_grid_receive_topic_id
 
   tags = local.tags

@@ -6,7 +6,7 @@ provider "azurerm" {
 locals {
   service_bus_namespace_name     = "${var.unique_project_name}-e2e-servicebus-namespace${var.service_bus_suffix}"
   service_bus_authorization_rule = "${var.unique_project_name}-e2e-manage"
-  service_bus_topic_name = "${var.unique_project_name}-e2e-receive-event-grid-topic"
+  service_bus_topic_name         = "${var.unique_project_name}-e2e-receive-event-grid-topic"
 }
 
 data "azurerm_resource_group" "rg" {
