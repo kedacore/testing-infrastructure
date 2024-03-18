@@ -403,11 +403,11 @@ module "github_secrets" {
       value = module.azure_servicebus_namespace_event_grid.connection_string
     },
     {
-      name  = "TF_AZURE_EVENT_GRID_ENDPOINT"
+      name  = "TF_AZURE_EVENT_GRID_TOPIC_ENDPOINT"
       value = module.azurerm_eventgrid_topic.endpoint
     },
     {
-      name  = "TF_AZURE_EVENT_GRID_KEY"
+      name  = "TF_AZURE_EVENT_GRID_TOPIC_KEY"
       value = module.azurerm_eventgrid_topic.key
     },
     {
