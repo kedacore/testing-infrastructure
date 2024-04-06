@@ -81,7 +81,7 @@ module "azuread_applications" {
 module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.28"
+  kubernetes_version  = "1.29"
   cluster_name        = local.pr_cluster_name
   unique_project_name = var.unique_project_name
 
@@ -103,7 +103,7 @@ module "azure_aks_pr" {
 module "azure_aks_nightly" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.28"
+  kubernetes_version  = "1.29"
   cluster_name        = local.main_cluster_name
   unique_project_name = var.unique_project_name
 
@@ -210,6 +210,26 @@ module "azure_servicebus_namespace_alternative" {
   service_bus_admin_identities = [
     module.azuread_applications.identity_2
   ]
+  tags = local.tags
+}
+
+module "azure_servicebus_namespace_event_grid" {
+  source              = "./modules/azure/service-bus"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+  service_bus_suffix  = "-event-grid"
+  service_bus_admin_identities = [
+    module.azuread_applications.identity_1
+  ]
+  tags = local.tags
+}
+
+module "azurerm_eventgrid_topic" {
+  source               = "./modules/azure/event-grid"
+  resource_group_name  = var.azure_resource_group_name
+  unique_project_name  = var.unique_project_name
+  service_bus_topic_id = module.azure_servicebus_namespace_event_grid.event_grid_receive_topic_id
+
   tags = local.tags
 }
 
@@ -377,6 +397,22 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_RABBIT_API_APPLICATION_ID"
       value = module.azure_rabbitmq_app_registration.application_id
+    },
+    {
+      name  = "TF_AZURE_SERVICE_BUS_EVENTGRID_CONNECTION_STRING"
+      value = module.azure_servicebus_namespace_event_grid.connection_string
+    },
+    {
+      name  = "TF_AZURE_EVENT_GRID_TOPIC_ENDPOINT"
+      value = module.azurerm_eventgrid_topic.endpoint
+    },
+    {
+      name  = "TF_AZURE_EVENT_GRID_TOPIC_KEY"
+      value = module.azurerm_eventgrid_topic.key
+    },
+    {
+      name  = "TF_AZURE_SB_EVENT_GRID_RECEIVE_TOPIC"
+      value = module.azure_servicebus_namespace_event_grid.event_grid_receive_topic
     },
   ]
 }
