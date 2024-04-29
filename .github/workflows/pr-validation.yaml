@@ -54,7 +54,7 @@ jobs:
         service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3.0.0
+      uses: hashicorp/setup-terraform@v3.1.0
 
     - name: Setup TFLint
       uses: terraform-linters/setup-tflint@v4
