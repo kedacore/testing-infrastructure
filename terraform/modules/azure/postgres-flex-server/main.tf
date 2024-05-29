@@ -15,19 +15,17 @@ resource "azurerm_postgresql_flexible_server" "postgres_flex_server" {
   name                = local.postgres_server_name
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = data.azurerm_resource_group.rg.location
-
   authentication {
     active_directory_auth_enabled = true
     password_auth_enabled         = false
     tenant_id                     = var.application_tenant_id
   }
-
   version    = "14"
   sku_name   = var.postgres_sku_name
   storage_mb = var.postgres_storage_mb
   zone       = "1"
 
-  tags       = var.tags
+  tags = var.tags
 }
 
 resource "azurerm_postgresql_flexible_server_active_directory_administrator" "postgres_flex_server_ad_admin_uami" {
