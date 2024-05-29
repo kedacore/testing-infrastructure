@@ -18,3 +18,9 @@ resource "azurerm_user_assigned_identity" "keda_identity_2" {
   location            = data.azurerm_resource_group.rg.location
   resource_group_name = data.azurerm_resource_group.rg.name
 }
+
+resource "azurerm_user_assigned_identity" "postgres_identity" {
+  name                = "${var.unique_project_name}-e2e-test-postgres"
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
+}

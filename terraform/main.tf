@@ -94,7 +94,8 @@ module "azure_aks_pr" {
 
   workload_identity_applications = [
     module.azuread_applications.identity_1,
-    module.azuread_applications.identity_2
+    module.azuread_applications.identity_2,
+    module.azuread_applications.postgres_identity
   ]
 
   tags = local.tags
@@ -116,7 +117,8 @@ module "azure_aks_nightly" {
 
   workload_identity_applications = [
     module.azuread_applications.identity_1,
-    module.azuread_applications.identity_2
+    module.azuread_applications.identity_2,
+    module.azuread_applications.postgres_identity
   ]
 
   tags = local.tags
@@ -265,6 +267,23 @@ module "azure_rabbitmq_app_registration" {
   ]
 }
 
+module "azurerm_postgres_flexible_server" {
+  source              = "./postgres-flex-server"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+
+  postgres_runtime_version = "14"
+  postgres_sku_name        = "GP_Standard_D2s_v3"
+  postgres_storage_mb      = 32768
+
+  postgres_database_name = "test_db"
+
+  user_managed_identity_pg_ad_admin = module.azuread_applications.postgres_identity
+  application_tenant_id             = data.azurerm_client_config.current.tenant_id
+
+  tags = local.tags
+}
+
 // ====== GITHUB SECRETS ======
 
 module "github_secrets" {
@@ -348,6 +367,10 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
       value = module.azuread_applications.identity_2.client_id
+    },
+    {
+      name  = "TF_AZURE_POSTGRES_IDENTITY_APP_ID"
+      value = module.azuread_applications.postgres_identity.client_id
     },
     {
       name  = "TF_AZURE_KEYVAULT_URI"
