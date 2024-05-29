@@ -268,7 +268,7 @@ module "azure_rabbitmq_app_registration" {
 }
 
 module "azurerm_postgres_flexible_server" {
-  source              = "./postgres-flex-server"
+  source              = "./modules/azure/postgres-flex-server"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
 
