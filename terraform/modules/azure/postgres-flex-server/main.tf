@@ -11,13 +11,31 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
+resource "random_password" "admin_password" {
+  length      = 32
+  special     = false
+  min_lower   = 1
+  min_numeric = 1
+  min_upper   = 1
+}
+
+resource "random_string" "admin_username" {
+  length      = 8
+  special     = false
+  min_lower   = 1
+  min_numeric = 1
+  min_upper   = 1
+}
+
 resource "azurerm_postgresql_flexible_server" "postgres_flex_server" {
-  name                = local.postgres_server_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
+  name                   = local.postgres_server_name
+  resource_group_name    = data.azurerm_resource_group.rg.name
+  location               = data.azurerm_resource_group.rg.location
+  administrator_login    = random_string.admin_username.result
+  administrator_password = random_password.admin_password.result
   authentication {
     active_directory_auth_enabled = true
-    password_auth_enabled         = false
+    password_auth_enabled         = true
     tenant_id                     = var.application_tenant_id
   }
   version    = "14"
