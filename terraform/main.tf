@@ -373,6 +373,10 @@ module "github_secrets" {
       value = module.azuread_applications.postgres_identity.client_id
     },
     {
+      name  = "TF_AZURE_POSTGRES_IDENTITY_NAME"
+      value = module.azuread_applications.postgres_identity.name
+    },
+    {
       name  = "TF_AZURE_POSTGRES_FQDN"
       value = module.azurerm_postgres_flexible_server.postgres_flex_server_fqdn
     },
