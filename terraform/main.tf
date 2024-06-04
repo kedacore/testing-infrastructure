@@ -94,8 +94,7 @@ module "azure_aks_pr" {
 
   workload_identity_applications = [
     module.azuread_applications.identity_1,
-    module.azuread_applications.identity_2,
-    module.azuread_applications.postgres_identity
+    module.azuread_applications.identity_2
   ]
 
   tags = local.tags
@@ -117,8 +116,7 @@ module "azure_aks_nightly" {
 
   workload_identity_applications = [
     module.azuread_applications.identity_1,
-    module.azuread_applications.identity_2,
-    module.azuread_applications.postgres_identity
+    module.azuread_applications.identity_2
   ]
 
   tags = local.tags
@@ -278,7 +276,7 @@ module "azurerm_postgres_flexible_server" {
 
   postgres_database_name = "test_db"
 
-  user_managed_identity_pg_ad_admin = module.azuread_applications.postgres_identity
+  user_managed_identity_pg_ad_admin = module.azuread_applications.identity_1
   application_tenant_id             = data.azurerm_client_config.current.tenant_id
 
   tags = local.tags
@@ -365,16 +363,12 @@ module "github_secrets" {
       value = module.azuread_applications.identity_1.id
     },
     {
+      name  = "TF_AZURE_IDENTITY_1_NAME"
+      value = module.azuread_applications.identity_1.name
+    },
+    {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
       value = module.azuread_applications.identity_2.client_id
-    },
-    {
-      name  = "TF_AZURE_POSTGRES_IDENTITY_APP_ID"
-      value = module.azuread_applications.postgres_identity.client_id
-    },
-    {
-      name  = "TF_AZURE_POSTGRES_IDENTITY_NAME"
-      value = module.azuread_applications.postgres_identity.name
     },
     {
       name  = "TF_AZURE_POSTGRES_FQDN"
