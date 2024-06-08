@@ -20,11 +20,11 @@ resource "random_password" "admin_password" {
 }
 
 resource "random_string" "admin_username" {
-  length      = 8
-  special     = false
-  min_lower   = 1
-  min_numeric = 1
-  min_upper   = 1
+  length    = 8
+  special   = false
+  numeric   = false
+  min_lower = 1
+  min_upper = 1
 }
 
 resource "azurerm_postgresql_flexible_server" "postgres_flex_server" {

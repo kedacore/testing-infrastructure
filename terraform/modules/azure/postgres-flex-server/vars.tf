@@ -22,7 +22,7 @@ variable "postgres_runtime_version" {
 variable "postgres_sku_name" {
   type        = string
   description = "The SKU Name for the PostgreSQL Flexible Server"
-  default     = "GP_Standard_D2s_v3"
+  default     = "B_Standard_B1ms"
 }
 
 variable "postgres_storage_mb" {
