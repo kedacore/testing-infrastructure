@@ -30,7 +30,7 @@ resource "random_string" "admin_username" {
 resource "azurerm_postgresql_flexible_server" "postgres_flex_server" {
   name                   = local.postgres_server_name
   resource_group_name    = data.azurerm_resource_group.rg.name
-  location               = data.azurerm_resource_group.rg.location
+  location               = "northeurope" # We cannot provision postgres on WestEurope
   administrator_login    = random_string.admin_username.result
   administrator_password = random_password.admin_password.result
   authentication {
