@@ -4,7 +4,7 @@ provider "azurerm" {
 }
 
 locals {
-  postgres_server_name = "${var.unique_project_name}-e2e-postgres"
+  postgres_server_name = "${var.unique_project_name}-e2e-postgres-flex"
 }
 
 data "azurerm_resource_group" "rg" {
