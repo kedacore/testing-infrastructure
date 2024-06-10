@@ -265,6 +265,23 @@ module "azure_rabbitmq_app_registration" {
   ]
 }
 
+module "azurerm_postgres_flexible_server" {
+  source              = "./modules/azure/postgres-flex-server"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+
+  postgres_runtime_version = "14"
+  postgres_sku_name        = "B_Standard_B1ms"
+  postgres_storage_mb      = 32768
+
+  postgres_database_name = "test_db"
+
+  user_managed_identity_pg_ad_admin = module.azuread_applications.identity_1
+  application_tenant_id             = data.azurerm_client_config.current.tenant_id
+
+  tags = local.tags
+}
+
 // ====== GITHUB SECRETS ======
 
 module "github_secrets" {
@@ -346,8 +363,28 @@ module "github_secrets" {
       value = module.azuread_applications.identity_1.id
     },
     {
+      name  = "TF_AZURE_IDENTITY_1_NAME"
+      value = module.azuread_applications.identity_1.name
+    },
+    {
       name  = "TF_AZURE_IDENTITY_2_APP_ID"
       value = module.azuread_applications.identity_2.client_id
+    },
+    {
+      name  = "TF_AZURE_POSTGRES_FQDN"
+      value = module.azurerm_postgres_flexible_server.postgres_flex_server_fqdn
+    },
+    {
+      name  = "TF_AZURE_POSTGRES_ADMIN_USERNAME"
+      value = module.azurerm_postgres_flexible_server.admin_username
+    },
+    {
+      name  = "TF_AZURE_POSTGRES_ADMIN_PASSWORD"
+      value = module.azurerm_postgres_flexible_server.admin_password
+    },
+    {
+      name  = "TF_AZURE_POSTGRES_DB_NAME"
+      value = module.azurerm_postgres_flexible_server.postgres_database_name
     },
     {
       name  = "TF_AZURE_KEYVAULT_URI"
