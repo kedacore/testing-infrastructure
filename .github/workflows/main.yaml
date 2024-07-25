@@ -1,12 +1,14 @@
-name: 'Deploy infrastucture'
+name: "Deploy infrastucture"
 
 on:
   push:
     branches:
       - main
     paths:
-      - '**.tf'
-      - '.github/workflows/terraform.yaml'
+      - "**.tf"
+      - ".github/workflows/terraform.yaml"
+  schedule: # Scheduling the job we will update AKS automatically
+    - cron: "0 7 * * 1" # Mondays at 7:00 AM
   workflow_dispatch:
 
 concurrency: terraform
@@ -17,7 +19,7 @@ permissions:
 
 jobs:
   terraform:
-    name: 'Terraform'
+    name: "Terraform"
     runs-on: ubuntu-latest
     env:
       ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -29,43 +31,43 @@ jobs:
       GRAFANA_CLOUD_API_KEY: ${{ secrets.GRAFANA_CLOUD_API_KEY }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Log into Azure using OIDC
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Log into Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    - name: Log into AWS using OIDC
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-        aws-region: eu-west-2
+      - name: Log into AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: eu-west-2
 
-    - name: Log into GCP using OIDC
-      uses: google-github-actions/auth@v2
-      with:
-        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Log into GCP using OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3.1.1
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.1
 
-    - name: Terraform Init
-      run: |
-        terraform init \
-        -backend-config=storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME}} \
-        -backend-config=container_name=${{ secrets.BACKEND_STORAGE_CONTAINER_NAME}} \
-        -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}}
-      working-directory: terraform
+      - name: Terraform Init
+        run: |
+          terraform init \
+          -backend-config=storage_account_name=${{ secrets.BACKEND_STORAGE_ACCOUNT_NAME}} \
+          -backend-config=container_name=${{ secrets.BACKEND_STORAGE_CONTAINER_NAME}} \
+          -backend-config=resource_group_name=${{ secrets.BACKEND_STORAGE_RESOURCE_GROUP_NAME}}
+        working-directory: terraform
 
-    - name: Terraform Plan
-      run: terraform plan -out=plan.tfplan
-      working-directory: terraform
+      - name: Terraform Plan
+        run: terraform plan -out=plan.tfplan
+        working-directory: terraform
 
-    - name: Terraform Apply
-      run: terraform apply -input=false -auto-approve plan.tfplan
-      working-directory: terraform
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve plan.tfplan
+        working-directory: terraform
