@@ -18,7 +18,7 @@ data "azurerm_resource_group" "rg" {
 
 data "azurerm_kubernetes_service_versions" "current" {
   location        = data.azurerm_resource_group.rg.location
-  include_preview = false
+  include_preview = true
   version_prefix  = var.kubernetes_version
 }
 
