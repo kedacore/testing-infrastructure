@@ -54,6 +54,9 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
     "workspace_name" = {
       value = local.azure_monitor_workspace_name
     }
+    "location" = {
+      value = var.location
+    }
   })
   template_content = <<TEMPLATE
 {
@@ -62,6 +65,9 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
     "parameters": {
         "workspace_name": {
             "type": "String"
+        },
+        "location": {
+            "type": "String"
         }
     },
     "resources": [
@@ -69,7 +75,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
             "type": "microsoft.monitor/accounts",
             "apiVersion": "2021-06-03-preview",
             "name": "[parameters('workspace_name')]",
-            "location": "[resourceGroup().location]"
+            "location": "[parameters('location')]",
         }
     ],
     "outputs": {

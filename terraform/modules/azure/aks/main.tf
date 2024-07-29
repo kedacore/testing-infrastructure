@@ -98,6 +98,9 @@ resource "azurerm_resource_group_template_deployment" "dce" {
     "dce_name" = {
       value = local.dce_name
     }
+    "location" = {
+      value = var.location
+    }
   })
   template_content = <<TEMPLATE
 {
@@ -106,6 +109,9 @@ resource "azurerm_resource_group_template_deployment" "dce" {
   "parameters": {
       "dce_name": {
           "type": "String"
+      },
+      "location": {
+          "type": "String"
       }
   },
   "resources": [
@@ -113,7 +119,7 @@ resource "azurerm_resource_group_template_deployment" "dce" {
       "type": "Microsoft.Insights/dataCollectionEndpoints",
       "apiVersion": "2021-09-01-preview",
       "name": "[parameters('dce_name')]",
-      "location": "[resourceGroup().location]",
+      "location": "[parameters('location')]",
       "kind": "Linux",
       "properties": {}
     }
@@ -144,6 +150,9 @@ resource "azurerm_resource_group_template_deployment" "dcr" {
     "azure_monitor_workspace_id" = {
       value = var.azure_monitor_workspace_id
     }
+    "location" = {
+      value = var.location
+    }
   })
   template_content = <<TEMPLATE
 {
@@ -158,6 +167,9 @@ resource "azurerm_resource_group_template_deployment" "dcr" {
       },
       "azure_monitor_workspace_id": {
           "type": "String"
+      },
+      "location": {
+          "type": "String"
       }
   },
   "resources": [
@@ -165,7 +177,7 @@ resource "azurerm_resource_group_template_deployment" "dcr" {
       "type": "Microsoft.Insights/dataCollectionRules",
       "apiVersion": "2021-09-01-preview",
       "name": "[parameters('dcr_name')]",
-      "location": "[resourceGroup().location]",
+      "location": "[parameters('location')]",
       "kind": "Linux",
       "properties": {
         "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints/', parameters('dce_name'))]",
@@ -222,6 +234,9 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
     "cluster_name" = {
       value = azurerm_kubernetes_cluster.aks.name
     }
+    "location" = {
+      value = var.location
+    }
   })
   template_content = <<TEMPLATE
 {
@@ -236,6 +251,9 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
     },
     "cluster_name": {
       "type": "String"
+    },
+    "location": {
+      "type": "String"
     }
   },
   "resources": [
@@ -243,7 +261,7 @@ resource "azurerm_resource_group_template_deployment" "dcra" {
       "type": "Microsoft.ContainerService/managedClusters/providers/dataCollectionRuleAssociations",
       "name": "[concat(parameters('cluster_name'),'/microsoft.insights/', parameters('dcra_name'))]",
       "apiVersion": "2021-09-01-preview",
-      "location": "[resourceGroup().location]",
+      "location": "[parameters('location')]",
       "properties": {
         "description": "Association of data collection rule. Deleting this association will break the data collection for this AKS Cluster.",
         "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcr_name'))]"
@@ -272,6 +290,9 @@ resource "azurerm_resource_group_template_deployment" "rules" {
     "cluster_name" = {
       value = azurerm_kubernetes_cluster.aks.name
     }
+    "location" = {
+      value = var.location
+    }
   })
   template_content = <<TEMPLATE
 {
@@ -286,6 +307,9 @@ resource "azurerm_resource_group_template_deployment" "rules" {
     },
     "cluster_name": {
       "type": "String"
+    },
+    "location": {
+      "type": "String"
     }
   },
   "resources": [
@@ -293,7 +317,7 @@ resource "azurerm_resource_group_template_deployment" "rules" {
       "type": "Microsoft.AlertsManagement/prometheusRuleGroups",
       "apiVersion": "2021-07-22-preview",
       "name": "[parameters('rule_group_name')]",
-      "location": "[resourceGroup().location]",
+      "location": "[parameters('location')]",
       "properties": {
           "enabled": true,
           "clusterName": "[parameters('cluster_name')]",
