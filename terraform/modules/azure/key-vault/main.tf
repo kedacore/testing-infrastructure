@@ -17,7 +17,7 @@ data "azurerm_resource_group" "rg" {
 
 resource "azurerm_key_vault" "vault" {
   name                        = local.key_vault_name
-  location                    = data.azurerm_resource_group.rg.location
+  location                    = var.location
   resource_group_name         = data.azurerm_resource_group.rg.name
   enabled_for_disk_encryption = false
   tenant_id                   = var.tenant_id

@@ -14,7 +14,7 @@ data "azurerm_resource_group" "rg" {
 
 resource "azurerm_eventgrid_topic" "eventgrid" {
   name                = local.event_grid_name
-  location            = data.azurerm_resource_group.rg.location
+  location            = var.location
   resource_group_name = data.azurerm_resource_group.rg.name
   input_schema        = "CloudEventSchemaV1_0"
 

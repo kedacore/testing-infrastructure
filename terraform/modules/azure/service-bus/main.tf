@@ -15,7 +15,7 @@ data "azurerm_resource_group" "rg" {
 
 resource "azurerm_servicebus_namespace" "namespace" {
   name                = local.service_bus_namespace_name
-  location            = data.azurerm_resource_group.rg.location
+  location            = var.location
   resource_group_name = data.azurerm_resource_group.rg.name
   sku                 = "Standard"
   tags                = var.tags

@@ -84,6 +84,7 @@ module "azure_aks_pr" {
   kubernetes_version  = "1.30"
   cluster_name        = local.pr_cluster_name
   unique_project_name = var.unique_project_name
+  location            = "northeurope"
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name
@@ -106,6 +107,7 @@ module "azure_aks_nightly" {
   kubernetes_version  = "1.30"
   cluster_name        = local.main_cluster_name
   unique_project_name = var.unique_project_name
+  location            = "northeurope"
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name
@@ -269,6 +271,7 @@ module "azurerm_postgres_flexible_server" {
   source              = "./modules/azure/postgres-flex-server"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
+  location            = "northeurope"
 
   postgres_runtime_version = "14"
   postgres_sku_name        = "B_Standard_B1ms"

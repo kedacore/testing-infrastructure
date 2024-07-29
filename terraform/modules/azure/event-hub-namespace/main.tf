@@ -13,7 +13,7 @@ data "azurerm_resource_group" "rg" {
 
 resource "azurerm_eventhub_namespace" "ehub_namespace" {
   name                = local.event_hub_name
-  location            = data.azurerm_resource_group.rg.location
+  location            = var.location
   resource_group_name = data.azurerm_resource_group.rg.name
   sku                 = var.event_hub_sku
   capacity            = var.event_hub_capacity
