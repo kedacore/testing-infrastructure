@@ -185,6 +185,7 @@ module "azure_monitor_stack" {
   source              = "./modules/azure/monitor-stack"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
+  location            = "northeurope"
 
   monitor_admin_identities = [
     module.azuread_applications.identity_1,
