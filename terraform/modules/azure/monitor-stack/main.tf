@@ -64,10 +64,10 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
     "contentVersion": "1.0.0.0",
     "parameters": {
         "workspace_name": {
-            "type": "String"
+          "type": "String"
         },
         "location": {
-            "type": "String"
+          "type": "String"
         }
     },
     "resources": [
@@ -75,7 +75,7 @@ resource "azurerm_resource_group_template_deployment" "azure_monitor_workspace" 
             "type": "microsoft.monitor/accounts",
             "apiVersion": "2021-06-03-preview",
             "name": "[parameters('workspace_name')]",
-            "location": "[parameters('location')]",
+            "location": "[parameters('location')]"
         }
     ],
     "outputs": {
