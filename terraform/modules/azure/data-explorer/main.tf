@@ -13,9 +13,10 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
+
 resource "azurerm_kusto_cluster" "cluster" {
   name                = local.kusto_cluster_name
-  location            = data.azurerm_resource_group.rg.location
+  location            = var.location
   resource_group_name = data.azurerm_resource_group.rg.name
   auto_stop_enabled   = false
   engine              = "V3"
@@ -31,7 +32,7 @@ resource "azurerm_kusto_cluster" "cluster" {
 resource "azurerm_kusto_database" "database" {
   name                = local.kusto_database_name
   resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
+  location            = var.location
   cluster_name        = azurerm_kusto_cluster.cluster.name
 
   hot_cache_period   = "P1D"

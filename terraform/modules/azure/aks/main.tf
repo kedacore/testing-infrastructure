@@ -17,7 +17,7 @@ data "azurerm_resource_group" "rg" {
 }
 
 data "azurerm_kubernetes_service_versions" "current" {
-  location        = data.azurerm_resource_group.rg.location
+  location        = var.location
   include_preview = true
   version_prefix  = var.kubernetes_version
 }
@@ -25,7 +25,7 @@ data "azurerm_kubernetes_service_versions" "current" {
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = local.cluster_full_name
   dns_prefix          = local.cluster_full_name
-  location            = data.azurerm_resource_group.rg.location
+  location            = var.location
   resource_group_name = data.azurerm_resource_group.rg.name
   kubernetes_version  = data.azurerm_kubernetes_service_versions.current.latest_version
   oidc_issuer_enabled = true
