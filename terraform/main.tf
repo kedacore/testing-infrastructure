@@ -76,6 +76,7 @@ module "azuread_applications" {
   source              = "./modules/azure/managed_identities"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
+  location            = "northeurope"
 }
 
 module "azure_aks_pr" {
