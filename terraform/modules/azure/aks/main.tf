@@ -56,6 +56,16 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
+## ACR Permissions
+
+resource "azurerm_role_assignment" "kubweb_to_acr" {
+  scope                = var.azure_container_registry_id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+}
+
+## Workload Identity Federation
+
 resource "azurerm_federated_identity_credential" "msi_federation" {
   count               = length(var.workload_identity_applications)
   name                = "msi_federation-${local.cluster_full_name}-${var.workload_identity_applications[count.index].name}"
