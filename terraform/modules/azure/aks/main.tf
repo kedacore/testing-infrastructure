@@ -41,7 +41,15 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vm_size              = var.default_node_pool_instance_type
     orchestrator_version = data.azurerm_kubernetes_service_versions.current.latest_version
     tags                 = var.tags
+
+    upgrade_settings {
+      drain_timeout_in_minutes      = 0
+      max_surge                     = "10%"
+      node_soak_duration_in_minutes = 0
+    }
   }
+
+
 
   identity {
     type = "SystemAssigned"
@@ -390,16 +398,16 @@ resource "helm_release" "tugger" {
 
   values = [
     <<EOF
-    createMutatingWebhook: true
-    replicaCount: 2
-    rules:
-    - pattern: ^docker.io/(.*)
-      replacement: ${var.azure_container_registry_enpoint}/$1
-    whitelistNamespaces:
-    - kube-system
-    - kube-public
-    - calico-system
-    - tigera-operator
+createMutatingWebhook: true
+replicaCount: 2
+rules:
+- pattern: ^docker.io/(.*)
+  replacement: ${var.azure_container_registry_enpoint}/$1
+whitelistNamespaces:
+- kube-system
+- kube-public
+- calico-system
+- tigera-operator
     EOF
   ]
 }
