@@ -24,4 +24,7 @@ resource "azurerm_container_registry_cache_rule" "docker-io" {
   container_registry_id = azurerm_container_registry.acr.id
   target_repo           = "*"
   source_repo           = "docker.io/*"
+  // This credentialset has been created manually in the portal using kedacoreci credentials
+  // https://learn.microsoft.com/en-us/azure/container-registry/container-registry-artifact-cache?pivots=development-environment-azure-portal#create-new-credentials
+  credential_set_id = "${azurerm_container_registry.acr.id}/credentialSets/docker-credentials"
 }
