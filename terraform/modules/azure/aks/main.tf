@@ -369,3 +369,37 @@ TEMPLATE
   // NOTE: whilst we show an inline template here, we recommend
   // sourcing this from a file for readability/editor support
 }
+
+## Deploy the image proxy
+
+provider "helm" {
+  kubernetes {
+    host                   = azurerm_kubernetes_cluster.aks.kube_config.0.host
+    client_certificate     = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.client_certificate)
+    client_key             = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.client_key)
+    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.cluster_ca_certificate)
+
+  }
+}
+
+resource "helm_release" "tugger" {
+  name = "tugger"
+  namespace = "tugger"
+  repository = "https://jainishshah17.github.io/tugger"
+  chart      = "tugger"
+
+  values = [
+		<<EOF
+    createMutatingWebhook: true
+    replicaCount: 2
+    rules:
+    - pattern: ^docker.io/(.*)
+      replacement: kedaproxy.azurecr.io/$1
+    whitelistNamespaces:
+    - kube-system
+    - kube-public
+    - calico-system
+    - tigera-operator
+    EOF
+  ]
+}
