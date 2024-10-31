@@ -393,6 +393,7 @@ resource "helm_release" "tugger" {
   namespace  = "tugger"
   repository = "https://jainishshah17.github.io/tugger"
   chart      = "tugger"
+  create_namespace = true
 
   values = [
     <<EOF
