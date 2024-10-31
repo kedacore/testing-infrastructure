@@ -383,18 +383,18 @@ provider "helm" {
 }
 
 resource "helm_release" "tugger" {
-  name = "tugger"
-  namespace = "tugger"
+  name       = "tugger"
+  namespace  = "tugger"
   repository = "https://jainishshah17.github.io/tugger"
   chart      = "tugger"
 
   values = [
-		<<EOF
+    <<EOF
     createMutatingWebhook: true
     replicaCount: 2
     rules:
     - pattern: ^docker.io/(.*)
-      replacement: kedaproxy.azurecr.io/$1
+      replacement: ${var.azure_container_registry_enpoint}/$1
     whitelistNamespaces:
     - kube-system
     - kube-public

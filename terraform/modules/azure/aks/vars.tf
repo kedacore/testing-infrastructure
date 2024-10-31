@@ -41,6 +41,11 @@ variable "azure_container_registry_id" {
   description = "Azure Container Registry ID"
 }
 
+variable "azure_container_registry_enpoint" {
+  type        = string
+  description = "Azure Container Registry Endpoint"
+}
+
 variable "default_node_pool_count" {
   type        = number
   default     = 3
