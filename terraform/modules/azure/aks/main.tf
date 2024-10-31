@@ -388,24 +388,22 @@ provider "helm" {
   }
 }
 
-resource "helm_release" "tugger" {
-  name       = "tugger"
-  namespace  = "tugger"
-  repository = "https://jainishshah17.github.io/tugger"
-  chart      = "tugger"
+resource "helm_release" "spegel" {
+  name             = "spegel"
+  namespace        = "spegel"
+  repository       = "oci://ghcr.io/spegel-org/helm-charts"
+  chart            = "spegel"
+  create_namespace = true
+  version          = "v0.0.27"
 
   values = [
     <<EOF
-createMutatingWebhook: true
-replicaCount: 2
-rules:
-- pattern: ^docker.io/(.*)
-  replacement: ${var.azure_container_registry_enpoint}/$1
-whitelistNamespaces:
-- kube-system
-- kube-public
-- calico-system
-- tigera-operator
+spegel:
+  additionalMirrorRegistries: 
+    - ${var.azure_container_registry_enpoint}
+  appendMirrors: false
+  registries:
+  - https://docker.io
     EOF
   ]
 }
