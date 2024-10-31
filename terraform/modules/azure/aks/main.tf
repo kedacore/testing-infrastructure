@@ -41,6 +41,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vm_size              = var.default_node_pool_instance_type
     orchestrator_version = data.azurerm_kubernetes_service_versions.current.latest_version
     tags                 = var.tags
+
+    upgrade_settings {
+      drain_timeout_in_minutes      = 0
+      max_surge                     = "10%"
+      node_soak_duration_in_minutes = 0
+    }
   }
 
   identity {
@@ -368,4 +374,38 @@ TEMPLATE
 
   // NOTE: whilst we show an inline template here, we recommend
   // sourcing this from a file for readability/editor support
+}
+
+## Deploy the image proxy
+
+provider "helm" {
+  kubernetes {
+    host                   = azurerm_kubernetes_cluster.aks.kube_config.0.host
+    client_certificate     = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.client_certificate)
+    client_key             = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.client_key)
+    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.cluster_ca_certificate)
+
+  }
+}
+
+resource "helm_release" "tugger" {
+  name       = "tugger"
+  namespace  = "tugger"
+  repository = "https://jainishshah17.github.io/tugger"
+  chart      = "tugger"
+
+  values = [
+    <<EOF
+createMutatingWebhook: true
+replicaCount: 2
+rules:
+- pattern: ^docker.io/(.*)
+  replacement: ${var.azure_container_registry_enpoint}/$1
+whitelistNamespaces:
+- kube-system
+- kube-public
+- calico-system
+- tigera-operator
+    EOF
+  ]
 }

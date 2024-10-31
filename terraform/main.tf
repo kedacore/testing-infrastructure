@@ -109,7 +109,8 @@ module "azure_aks_pr" {
     module.azuread_applications.identity_2
   ]
 
-  azure_container_registry_id = module.acr_proxy.id
+  azure_container_registry_id      = module.acr_proxy.id
+  azure_container_registry_enpoint = module.acr_proxy.endpoint
 
   tags = local.tags
 }
@@ -134,7 +135,8 @@ module "azure_aks_nightly" {
     module.azuread_applications.identity_2
   ]
 
-  azure_container_registry_id = module.acr_proxy.id
+  azure_container_registry_id      = module.acr_proxy.id
+  azure_container_registry_enpoint = module.acr_proxy.endpoint
 
   tags = local.tags
 }
