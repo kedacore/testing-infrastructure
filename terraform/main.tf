@@ -79,6 +79,16 @@ module "azuread_applications" {
   location            = "northeurope"
 }
 
+module "acr_proxy" {
+  source              = "./modules/azure/registry"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+  location            = "northeurope"
+
+  tags = local.tags
+}
+
+
 module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
