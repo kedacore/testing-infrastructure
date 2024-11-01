@@ -31,8 +31,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   oidc_issuer_enabled = true
   node_resource_group = var.node_resource_group_name
 
-  node_os_channel_upgrade = "Unmanaged"
-
   monitor_metrics {}
 
   default_node_pool {
@@ -60,14 +58,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
       default_node_pool[0].node_count
     ]
   }
-}
-
-## ACR Permissions
-
-resource "azurerm_role_assignment" "kubweb_to_acr" {
-  scope                = var.azure_container_registry_id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
 }
 
 ## Workload Identity Federation
@@ -388,22 +378,104 @@ provider "helm" {
   }
 }
 
-resource "helm_release" "spegel" {
-  name             = "spegel"
-  namespace        = "spegel"
-  repository       = "oci://ghcr.io/spegel-org/helm-charts"
-  chart            = "spegel"
-  create_namespace = true
-  version          = "v0.0.27"
+provider "kubectl" {
+  host                   = azurerm_kubernetes_cluster.aks.kube_config.0.host
+  client_certificate     = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.client_certificate)
+  client_key             = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.client_key)
+  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks.kube_config.0.cluster_ca_certificate)
+}
 
-  values = [
-    <<EOF
-spegel:
-  additionalMirrorRegistries: 
-    - ${var.azure_container_registry_enpoint}
-  appendMirrors: false
-  registries:
-  - https://docker.io
+
+resource "kubectl_manifest" "namespace" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: node-installer
+YAML
+}
+
+resource "kubectl_manifest" "configuration" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: installer-config
+  namespace: node-installer
+data:
+  install.sh: |
+    #!/bin/bash
+
+    # Update docker.io mirror
+    mkdir -p /etc/containerd/certs.d/docker.io
+    cat <<EOF > /etc/containerd/certs.d/docker.io/hosts.toml
+    server = 'https://registry-1.docker.io'
+
+    [host.'https://${var.azure_container_registry_enpoint}/v2']
+    capabilities = ['pull', 'resolve']
+    override_path = true
     EOF
-  ]
+
+    # Update credentials
+    if grep "${var.azure_container_registry_enpoint}" /etc/containerd/config.toml; 
+    then 
+      echo "credentials already set, ignorning"
+    else 
+      cat <<EOF >> /etc/containerd/config.toml
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.azure_container_registry_enpoint}".auth]
+      username = "${var.azure_container_registry_username}"
+      password = "${var.azure_container_registry_password}"
+    EOF
+      # Restart containerd
+      systemctl restart containerd
+    fi
+YAML
+
+  depends_on = [kubectl_manifest.namespace]
+}
+
+resource "kubectl_manifest" "daemonset" {
+  yaml_body = <<YAML
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: installer
+  namespace: node-installer
+spec:
+  selector:
+    matchLabels:
+      job: installer
+  template:
+    metadata:
+      labels:
+        job: installer
+    spec:
+      hostPID: true
+      restartPolicy: Always
+      containers:
+      - image: patnaikshekhar/node-installer:1.3
+        name: installer
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: install-script
+          mountPath: /tmp
+        - name: host-mount
+          mountPath: /host
+        - name: containerd
+          mountPath: /etc/containerd
+      volumes:
+      - name: install-script
+        configMap:
+          name: installer-config
+      - name: containerd
+        hostPath:
+          path: /etc/containerd
+          type: Directory
+      - name: host-mount
+        hostPath:
+          path: /tmp/install
+YAML
+
+  depends_on = [kubectl_manifest.configuration]
 }

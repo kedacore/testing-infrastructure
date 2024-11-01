@@ -5,6 +5,7 @@ provider "azurerm" {
 
 locals {
   registry_name = "${var.unique_project_name}proxy"
+  username      = "e2e-cluster-puller"
 }
 
 data "azurerm_resource_group" "rg" {
@@ -17,6 +18,28 @@ resource "azurerm_container_registry" "acr" {
   location            = var.location
   sku                 = "Basic"
   tags                = var.tags
+}
+
+resource "azurerm_container_registry_scope_map" "acr_policy" {
+  name                    = "e2e-cluster-puller"
+  container_registry_name = azurerm_container_registry.acr.name
+  resource_group_name     = data.azurerm_resource_group.rg.name
+  actions = [
+    "content/read",
+  ]
+}
+
+resource "azurerm_container_registry_token" "acr_user" {
+  name                    = local.username
+  container_registry_name = azurerm_container_registry.acr.name
+  resource_group_name     = azurerm_resource_group.acr.name
+  scope_map_id            = azurerm_container_registry_scope_map.acr_policy.id
+}
+
+resource "azurerm_container_registry_token_password" "acr_token" {
+  container_registry_token_id = azurerm_container_registry_token.acr_user.id
+
+  password1 {}
 }
 
 resource "azurerm_container_registry_cache_rule" "docker-io" {

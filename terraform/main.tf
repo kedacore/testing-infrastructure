@@ -109,8 +109,9 @@ module "azure_aks_pr" {
     module.azuread_applications.identity_2
   ]
 
-  azure_container_registry_id      = module.acr_proxy.id
-  azure_container_registry_enpoint = module.acr_proxy.endpoint
+  azure_container_registry_username = module.acr_proxy.username
+  azure_container_registry_password = module.acr_proxy.password
+  azure_container_registry_enpoint  = module.acr_proxy.endpoint
 
   tags = local.tags
 }
@@ -135,8 +136,9 @@ module "azure_aks_nightly" {
     module.azuread_applications.identity_2
   ]
 
-  azure_container_registry_id      = module.acr_proxy.id
-  azure_container_registry_enpoint = module.acr_proxy.endpoint
+  azure_container_registry_username = module.acr_proxy.username
+  azure_container_registry_password = module.acr_proxy.password
+  azure_container_registry_enpoint  = module.acr_proxy.endpoint
 
   tags = local.tags
 }
