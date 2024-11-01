@@ -32,7 +32,7 @@ resource "azurerm_container_registry_scope_map" "acr_policy" {
 resource "azurerm_container_registry_token" "acr_user" {
   name                    = local.username
   container_registry_name = azurerm_container_registry.acr.name
-  resource_group_name     = azurerm_resource_group.rg.name
+  resource_group_name     = data.azurerm_resource_group.rg.name
   scope_map_id            = azurerm_container_registry_scope_map.acr_policy.id
 }
 
