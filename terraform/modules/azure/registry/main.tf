@@ -51,3 +51,28 @@ resource "azurerm_container_registry_cache_rule" "docker-io" {
   // https://learn.microsoft.com/en-us/azure/container-registry/container-registry-artifact-cache?pivots=development-environment-azure-portal#create-new-credentials
   credential_set_id = "${azurerm_container_registry.acr.id}/credentialSets/docker-credentials"
 }
+
+resource "azurerm_container_registry_task" "acr_purge_task" {
+  name                  = "scheduledAcrPurgeTask"
+  container_registry_id = azurerm_container_registry.acr.id
+  platform {
+    os           = "Linux"
+    architecture = "amd64"
+  }
+  encoded_step {
+    task_content = <<EOF
+version: v1.1.0
+steps: 
+  - cmd: acr purge --filter '.*:.*' --untagged --ago 15d
+    disableWorkingDirectoryOverride: true
+    timeout: 3600
+EOF
+  }
+  timer_trigger {
+    name     = "t1"
+    schedule = "0 0 * * Tue"
+    enabled  = true
+  }
+
+  tags = var.tags
+}
