@@ -7,6 +7,6 @@ output "username" {
 }
 
 output "password" {
-  value = azurerm_container_registry_token_password.acr_token.password1.value
+  value = azurerm_container_registry_token_password.acr_token.password1[0].value
 }
 
