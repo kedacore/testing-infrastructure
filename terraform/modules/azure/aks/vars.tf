@@ -36,14 +36,19 @@ variable "node_resource_group_name" {
   description = "AKS nodes resource group name"
 }
 
-variable "azure_container_registry_id" {
-  type        = string
-  description = "Azure Container Registry ID"
-}
-
 variable "azure_container_registry_enpoint" {
   type        = string
   description = "Azure Container Registry Endpoint"
+}
+
+variable "azure_container_registry_username" {
+  type        = string
+  description = "Azure Container Registry Username"
+}
+
+variable "azure_container_registry_password" {
+  type        = string
+  description = "Azure Container Registry Password"
 }
 
 variable "default_node_pool_count" {
