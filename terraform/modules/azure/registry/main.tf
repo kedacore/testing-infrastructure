@@ -20,20 +20,11 @@ resource "azurerm_container_registry" "acr" {
   tags                = var.tags
 }
 
-resource "azurerm_container_registry_scope_map" "acr_policy" {
-  name                    = "e2e-cluster-puller"
-  container_registry_name = azurerm_container_registry.acr.name
-  resource_group_name     = data.azurerm_resource_group.rg.name
-  actions = [
-    "content/read",
-  ]
-}
-
 resource "azurerm_container_registry_token" "acr_user" {
   name                    = local.username
   container_registry_name = azurerm_container_registry.acr.name
   resource_group_name     = data.azurerm_resource_group.rg.name
-  scope_map_id            = azurerm_container_registry_scope_map.acr_policy.id
+  scope_map_id            = "_repositories_pull"
 }
 
 resource "azurerm_container_registry_token_password" "acr_token" {
