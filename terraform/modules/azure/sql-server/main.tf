@@ -54,16 +54,15 @@ resource "azurerm_mssql_server" "server" {
     object_id      = data.azurerm_client_config.current.object_id
   }
 
-  tags = var.naming.tags
-
+  tags = var.tags
 }
 
 resource "azurerm_mssql_database" "database" {
   name        = var.sql_database_name
   server_id   = azurerm_mssql_server.server.id
   max_size_gb = var.sql_storage_gb
-  tags        = var.tags
   sku_name    = var.sql_sku_name
+  tags        = var.tags
 }
 
 provider "mssql" {
