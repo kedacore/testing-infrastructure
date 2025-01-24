@@ -23,7 +23,7 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
-resource "" "admin_password" {
+resource "random_password" "admin_password" {
   length      = 32
   special     = false
   min_lower   = 1
