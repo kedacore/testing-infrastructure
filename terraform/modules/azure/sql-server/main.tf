@@ -13,20 +13,6 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
-resource "azurerm_virtual_network" "network" {
-  name                = local.sql_server_network_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = var.location
-  address_space       = ["10.0.0.0/16"]
-}
-
-resource "azurerm_subnet" "subnet" {
-  name                 = local.sql_server_subnet_name
-  resource_group_name  = data.azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.network.name
-  address_prefixes     = ["10.0.2.0/24"]
-}
-
 resource "random_password" "admin_password" {
   length      = 32
   special     = false
@@ -43,34 +29,49 @@ resource "random_string" "admin_username" {
   min_upper = 1
 }
 
-resource "azurerm_mssql_managed_instance" "instance" {
+resource "azurerm_mssql_server" "server" {
   name                = local.sql_server_name
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
+  version             = var.sql_version
+  minimum_tls_version = "1.2"
 
-  license_type       = "BasePrice"
-  sku_name           = var.sql_sku_name
-  storage_size_in_gb = var.sql_storage_gb
-  subnet_id          = azurerm_subnet.subnet.id
-  vcores             = var.sql_vcores
+  administrator_login          = random_string.admin_username
+  administrator_login_password = random_string.admin_password
 
-  administrator_login          = random_string.admin_username.result
-  administrator_login_password = random_password.admin_password.result
-
-  identity {
-    type = "SystemAssigned"
+  azuread_administrator {
+    login_username = "AzureAD Admin"
+    object_id      = data.azurerm_client_config.current.object_id
   }
+
+  tags = var.naming.tags
+
 }
 
-resource "azurerm_mssql_managed_instance_active_directory_administrator" "admin" {
-  managed_instance_id = azurerm_mssql_managed_instance.instance.id
-  login_username      = "AzureAD Admin"
-  object_id           = var.user_managed_identity_sql_ad_admin
-  tenant_id           = var.application_tenant_id
+resource "azurerm_mssql_database" "database" {
+  name        = var.sql_database_name
+  server_id   = azurerm_mssql_server.server.id
+  max_size_gb = var.sql_storage_gb
+  tags        = var.tags
+  sku_name    = var.sql_sku_name
 }
 
+provider "mssql" {
+  debug = "true"
+}
 
-resource "azurerm_mssql_managed_database" "database" {
-  name                = var.sql_database_name
-  managed_instance_id = azurerm_mssql_managed_instance.instance.id
+resource "mssql_user" "external_users" {
+  server {
+    host = azurerm_mssql_managed_instance.instance.fqdn
+    login {
+      username = random_string.admin_username
+      password = random_string.admin_password
+    }
+  }
+
+  database  = azurerm_mssql_database.database.name
+  username  = "msi-admin-${azurerm_mssql_database.database.name}"
+  object_id = var.user_managed_identity_sql_ad_admin.client_id
+
+  roles = ["db_owner"]
 }

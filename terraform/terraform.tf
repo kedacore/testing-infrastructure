@@ -34,6 +34,10 @@ terraform {
       source  = "alekc/kubectl"
       version = "2.1.2"
     }
+    mssql = {
+      source  = "betr-io/mssql"
+      version = "0.3.1"
+    }
   }
 }
 

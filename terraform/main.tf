@@ -311,13 +311,12 @@ module "azurerm_sql_server" {
   unique_project_name = var.unique_project_name
   location            = "northeurope"
 
-  sql_sku_name   = "GP_Gen5"
-  sql_storage_gb = 5
+  sql_sku_name   = "Basic"
+  sql_storage_gb = 1
 
   sql_database_name = "test_db"
 
   user_managed_identity_sql_ad_admin = module.azuread_applications.identity_1
-  application_tenant_id              = data.azurerm_client_config.current.tenant_id
 
   tags = local.tags
 }

@@ -28,7 +28,7 @@ variable "sql_version" {
 variable "sql_sku_name" {
   type        = string
   description = "The SKU Name"
-  default     = "GP_Gen5"
+  default     = "BC_Gen4"
 }
 
 variable "sql_storage_gb" {
@@ -42,7 +42,6 @@ variable "sql_vcores" {
   description = "The vcores allowed"
   default     = 1
 }
-
 variable "sql_database_name" {
   type        = string
   description = "Database name to create inside the server"
@@ -52,9 +51,4 @@ variable "sql_database_name" {
 variable "user_managed_identity_sql_ad_admin" {
   type        = any
   description = "User managed identitiy that will be granted admin access on the SQL server"
-}
-
-variable "application_tenant_id" {
-  type        = string
-  description = "TenantId of the application"
 }
