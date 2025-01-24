@@ -23,7 +23,7 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
-resource "random_password" "admin_password" {
+resource "" "admin_password" {
   length      = 32
   special     = false
   min_lower   = 1
@@ -46,8 +46,8 @@ resource "azurerm_mssql_server" "server" {
   version             = var.sql_version
   minimum_tls_version = "1.2"
 
-  administrator_login          = random_string.admin_username
-  administrator_login_password = random_string.admin_password
+  administrator_login          = random_string.admin_username.result
+  administrator_login_password = random_password.admin_password.result
 
   azuread_administrator {
     login_username = "AzureAD Admin"
@@ -74,8 +74,8 @@ resource "mssql_user" "external_users" {
   server {
     host = azurerm_mssql_server.server.fully_qualified_domain_name
     login {
-      username = random_string.admin_username
-      password = random_string.admin_password
+      username = random_string.admin_username.result
+      password = random_password.admin_password.result
     }
   }
 
