@@ -17,6 +17,8 @@ locals {
   sql_server_subnet_name  = "${var.unique_project_name}-e2e-sql-server-subnet"
 }
 
+data "azurerm_client_config" "current" {}
+
 data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
