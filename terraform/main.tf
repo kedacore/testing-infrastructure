@@ -305,6 +305,22 @@ module "azurerm_postgres_flexible_server" {
   tags = local.tags
 }
 
+module "azurerm_sql_server" {
+  source              = "./modules/azure/sql-server"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+  location            = "northeurope"
+
+  sql_sku_name   = "Basic"
+  sql_storage_gb = 1
+
+  sql_database_name = "test_db"
+
+  user_managed_identity_sql_ad_admin = module.azuread_applications.identity_1
+
+  tags = local.tags
+}
+
 // ====== GITHUB SECRETS ======
 
 module "github_secrets" {
@@ -408,6 +424,22 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_POSTGRES_DB_NAME"
       value = module.azurerm_postgres_flexible_server.postgres_database_name
+    },
+    {
+      name  = "TF_AZURE_SQL_SERVER_FQDN"
+      value = module.azurerm_sql_server.sql_server_fqdn
+    },
+    {
+      name  = "TF_AZURE_SQL_SERVER_ADMIN_USERNAME"
+      value = module.azurerm_sql_server.admin_username
+    },
+    {
+      name  = "TF_AZURE_SQL_SERVER_ADMIN_PASSWORD"
+      value = module.azurerm_sql_server.admin_password
+    },
+    {
+      name  = "TF_AZURE_SQL_SERVER_DB_NAME"
+      value = module.azurerm_sql_server.sql_database_name
     },
     {
       name  = "TF_AZURE_KEYVAULT_URI"

@@ -53,8 +53,8 @@ resource "azuread_application" "oauth2_api" {
 }
 
 resource "azuread_service_principal" "oauth2_api" {
-  application_id = azuread_application.oauth2_api.application_id
-  use_existing   = true
+  client_id    = azuread_application.oauth2_api.client_id
+  use_existing = true
 }
 
 locals {
