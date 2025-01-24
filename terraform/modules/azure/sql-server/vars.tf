@@ -22,7 +22,7 @@ variable "tags" {
 variable "sql_version" {
   type        = string
   description = "Sql version to use"
-  default     = "12"
+  default     = "12.0"
 }
 
 variable "sql_sku_name" {
