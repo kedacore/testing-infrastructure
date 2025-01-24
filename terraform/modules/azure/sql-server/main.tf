@@ -65,6 +65,13 @@ resource "azurerm_mssql_database" "database" {
   tags        = var.tags
 }
 
+resource "azurerm_mssql_firewall_rule" "allow_all" {
+  name             = "AllowAllAzure"
+  server_id        = azurerm_mssql_server.server.id
+  start_ip_address = "0.0.0.0"
+  end_ip_address   = "0.0.0.0"
+}
+
 provider "mssql" {
   debug = "true"
 }
@@ -83,4 +90,6 @@ resource "mssql_user" "external_users" {
   object_id = var.user_managed_identity_sql_ad_admin.client_id
 
   roles = ["db_owner"]
+
+  depends_on = [azurerm_mssql_firewall_rule.allow_all]
 }
