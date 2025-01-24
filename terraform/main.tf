@@ -488,7 +488,7 @@ module "github_secrets" {
     },
     {
       name  = "TF_AZURE_RABBIT_API_APPLICATION_ID"
-      value = module.azure_rabbitmq_app_registration.application_id
+      value = module.azure_rabbitmq_app_registration.client_id
     },
     {
       name  = "TF_AZURE_SERVICE_BUS_EVENTGRID_CONNECTION_STRING"
