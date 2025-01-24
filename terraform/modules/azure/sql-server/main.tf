@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    mssql = {
+      source  = "betr-io/mssql"
+      version = "0.3.1"
+    }
+  }
+}
+
 provider "azurerm" {
   features {}
   skip_provider_registration = true
