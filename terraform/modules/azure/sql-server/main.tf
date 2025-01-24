@@ -72,7 +72,7 @@ provider "mssql" {
 
 resource "mssql_user" "external_users" {
   server {
-    host = azurerm_mssql_managed_instance.instance.fqdn
+    host = azurerm_mssql_server.server.fully_qualified_domain_name
     login {
       username = random_string.admin_username
       password = random_string.admin_password
