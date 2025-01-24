@@ -1,5 +1,5 @@
-output "application_id" {
-  value = azuread_application.oauth2_api.application_id
+output "client_id" {
+  value = azuread_application.oauth2_api.client_id
 }
 
 output "application_scope_id" {
