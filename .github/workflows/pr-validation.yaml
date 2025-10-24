@@ -57,7 +57,7 @@ jobs:
       uses: hashicorp/setup-terraform@v3.1.2
 
     - name: Setup TFLint
-      uses: terraform-linters/setup-tflint@v5
+      uses: terraform-linters/setup-tflint@v6
 
     - name: Terraform Format
       id: fmt
