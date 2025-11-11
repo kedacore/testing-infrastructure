@@ -458,7 +458,6 @@ module "github_secrets" {
       value = data.aws_region.current.name
     },
     {
-      // TO REMOVE AFTER MERGING https://github.com/kedacore/keda/pull/5061
       name  = "TF_AWS_ACCOUNT_ID"
       value = data.aws_caller_identity.current.account_id
     },
