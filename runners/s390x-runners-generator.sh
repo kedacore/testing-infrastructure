@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export RUNNER_ALLOW_RUNASROOT=1
+
 while !(ping -q -c 1 -W 1 google.com >/dev/null)
 do
     echo "waiting for internet connectivity..."
