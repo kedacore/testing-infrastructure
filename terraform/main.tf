@@ -474,6 +474,14 @@ module "github_secrets" {
       value = module.aws_iam.workload2_role_arn
     },
     {
+      name  = "TF_AWS_ROLE_ARN_EXTERNAL_ID"
+      value = module.aws_iam.workload_external_id_role_arn
+    },
+    {
+      name  = "TF_AWS_EXTERNAL_ID"
+      value = module.aws_iam.workload_external_id_value
+    },
+    {
       name  = "TF_GCP_SA_CREDENTIALS"
       value = module.gcp_iam.e2e_user_credentials
     },
