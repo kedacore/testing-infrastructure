@@ -1,8 +1,10 @@
 
 locals {
-  keda_role_name      = "keda-operator"
-  workload1_role_name = "keda-workload-1"
-  workload2_role_name = "keda-workload-2"
+  keda_role_name                = "keda-operator"
+  workload1_role_name           = "keda-workload-1"
+  workload2_role_name           = "keda-workload-2"
+  workload_external_id_name     = "keda-workload-external-id"
+  workload_external_id_value    = "keda-e2e-external-id-test"
   keda_clusters_trusted_relations = jsonencode(
     [for index, provider in aws_iam_openid_connect_provider.oidc_providers :
       {
@@ -100,14 +102,16 @@ resource "aws_iam_policy" "policy" {
             "Effect": "Deny",
             "Action": "sqs:GetQueueAttributes",
             "Resource": [
-                "arn:aws:sqs:*:589761922677:assume-role-*"
+                "arn:aws:sqs:*:589761922677:assume-role-*",
+                "arn:aws:sqs:*:589761922677:external-id-queue-*"
             ]
         },
         {
             "Effect": "Allow",
             "Action": "sts:AssumeRole",
             "Resource": [
-                "arn:aws:iam::*:role/${local.workload1_role_name}"
+                "arn:aws:iam::*:role/${local.workload1_role_name}",
+                "arn:aws:iam::*:role/${local.workload_external_id_name}"
             ]
         }
     ]
@@ -192,4 +196,55 @@ resource "aws_iam_role_policy_attachment" "workload1_role_assignement" {
 resource "aws_iam_role_policy_attachment" "workload2_role_assignement" {
   role       = aws_iam_role.workload2_role.name
   policy_arn = aws_iam_policy.workload2_role_policy.arn
+}
+
+// This role requires an ExternalId to be assumed.
+// Used for testing the externalID support in KEDA's pod identity.
+resource "aws_iam_role" "workload_external_id_role" {
+  name = local.workload_external_id_name
+  tags = var.tags
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "AWS": "${aws_iam_role.keda_role.arn}"
+      },
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "${local.workload_external_id_value}"
+        }
+      }
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_policy" "workload_external_id_policy" {
+  name = "e2e-test-external-id-policy"
+  tags = var.tags
+
+  policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "sqs:*",
+            "Resource": "arn:aws:sqs:*:589761922677:external-id-queue-*"
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "workload_external_id_role_assignement" {
+  role       = aws_iam_role.workload_external_id_role.name
+  policy_arn = aws_iam_policy.workload_external_id_policy.arn
 }
