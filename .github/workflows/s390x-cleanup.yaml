@@ -12,35 +12,59 @@ jobs:
     steps:
       - name: Identify and Delete Old Clusters
         run: |
+          # The time threshold in seconds (default: 3600 seconds = 1 hour)
           THRESHOLD=3600
+          # The current time in seconds since the Epoch
           CURRENT_TIME=$(date +%s)
           
-          echo "Searching Kind clusters..."
+          echo "🔍 Searching for Kind clusters..."
           
+          # Get the list of Kind clusters. Redirects error to /dev/null and 
+          # uses '|| echo ""' to ensure CLUSTERS is empty if none are found.
           CLUSTERS=$(kind get clusters 2>/dev/null || echo "")
           
+          # Check if any clusters were found
           if [ -z "$CLUSTERS" ]; then
-            echo "Not Kind clusters found"
+            echo "✅ No Kind clusters found."
             exit 0
           fi
           
+          # Iterate over each found cluster
           for cluster in $CLUSTERS; do
+            # The control plane node in Kind is always named <cluster-name>-control-plane
             NODE_NAME="${cluster}-control-plane"
             
+            # Get the creation timestamp of the Docker container
+            # The output format is '{{.Created}}', which is Docker's ISO timestamp
             CREATE_DATE=$(docker inspect -f '{{.Created}}' "$NODE_NAME" 2>/dev/null)
             
+            # Check if reading the container info was successful
             if [ -z "$CREATE_DATE" ]; then
-              echo "Invalid info reading cluster: $cluster"
+              echo "⚠️ Error reading node '$NODE_NAME' information for cluster: $cluster"
               continue
             fi
             
-            CREATE_SECONDS=$(date -d "$CREATE_DATE" +%s)
+            # Convert the creation timestamp to seconds since the epoch
+            # Note: The 'date -d' command usually recognizes Docker's ISO 8601 format.
+            CREATE_SECONDS=$(date -d "$CREATE_DATE" +%s 2>/dev/null)
+            
+            if [ $? -ne 0 ] || [ -z "$CREATE_SECONDS" ]; then
+                echo "⚠️ Error converting date '$CREATE_DATE' to seconds for cluster: $cluster"
+                continue
+            fi
+          
+            # Calculate the cluster's age in seconds
             AGE=$((CURRENT_TIME - CREATE_SECONDS))
             
+            # Evaluate if the age exceeds the threshold
             if [ $AGE -gt $THRESHOLD ]; then
-              echo "Removing cluster '$cluster' (Age: $((AGE / 60)) minutes)"
+              # Delete the cluster
+              echo "🗑️ Removing cluster '$cluster' (Age: $((AGE / 60)) minutes)"
               kind delete cluster --name "$cluster"
             else
-              echo "Keeping cluster '$cluster' (Age: $((AGE / 60)) minutes)"
+              # Keep the cluster
+              echo "✨ Keeping cluster '$cluster' (Age: $((AGE / 60)) minutes)"
             fi
           done
+          
+          echo "✅ Cleanup process finished."
