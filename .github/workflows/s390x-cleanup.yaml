@@ -1,0 +1,46 @@
+name: "Cleanup Old Kind Clusters on s390x"
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch: 
+jobs:
+  cleanup:
+    name: Delete Stale Clusters
+    runs-on: s390x
+    
+    steps:
+      - name: Identify and Delete Old Clusters
+        run: |
+          THRESHOLD=3600
+          CURRENT_TIME=$(date +%s)
+          
+          echo "Searching Kind clusters..."
+          
+          CLUSTERS=$(kind get clusters 2>/dev/null || echo "")
+          
+          if [ -z "$CLUSTERS" ]; then
+            echo "Not Kind clusters found"
+            exit 0
+          fi
+          
+          for cluster in $CLUSTERS; do
+            NODE_NAME="${cluster}-control-plane"
+            
+            CREATE_DATE=$(docker inspect -f '{{.Created}}' "$NODE_NAME" 2>/dev/null)
+            
+            if [ -z "$CREATE_DATE" ]; then
+              echo "Invalid info reading cluster: $cluster"
+              continue
+            fi
+            
+            CREATE_SECONDS=$(date -d "$CREATE_DATE" +%s)
+            AGE=$((CURRENT_TIME - CREATE_SECONDS))
+            
+            if [ $AGE -gt $THRESHOLD ]; then
+              echo "Removing cluster '$cluster' (Age: $((AGE / 60)) minutes)"
+              kind delete cluster --name "$cluster"
+            else
+              echo "Keeping cluster '$cluster' (Age: $((AGE / 60)) minutes)"
+            fi
+          done
