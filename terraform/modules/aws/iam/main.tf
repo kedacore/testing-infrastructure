@@ -1,10 +1,10 @@
 
 locals {
-  keda_role_name                = "keda-operator"
-  workload1_role_name           = "keda-workload-1"
-  workload2_role_name           = "keda-workload-2"
-  workload_external_id_name     = "keda-workload-external-id"
-  workload_external_id_value    = "keda-e2e-external-id-test"
+  keda_role_name             = "keda-operator"
+  workload1_role_name        = "keda-workload-1"
+  workload2_role_name        = "keda-workload-2"
+  workload_external_id_name  = "keda-workload-external-id"
+  workload_external_id_value = "keda-e2e-external-id-test"
   keda_clusters_trusted_relations = jsonencode(
     [for index, provider in aws_iam_openid_connect_provider.oidc_providers :
       {
