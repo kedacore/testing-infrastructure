@@ -17,3 +17,12 @@ output "workload1_role_arn" {
 output "workload2_role_arn" {
   value = aws_iam_role.workload2_role.arn
 }
+
+output "workload_external_id_role_arn" {
+  value = aws_iam_role.workload_external_id_role.arn
+}
+
+output "workload_external_id_value" {
+  value     = local.workload_external_id_value
+  sensitive = true
+}
