@@ -92,7 +92,7 @@ module "acr_proxy" {
 module "azure_aks_pr" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.34"
+  kubernetes_version  = "1.35"
   cluster_name        = local.pr_cluster_name
   unique_project_name = var.unique_project_name
   location            = "northeurope"
@@ -119,7 +119,7 @@ module "azure_aks_pr" {
 module "azure_aks_nightly" {
   source              = "./modules/azure/aks"
   resource_group_name = var.azure_resource_group_name
-  kubernetes_version  = "1.34"
+  kubernetes_version  = "1.35"
   cluster_name        = local.main_cluster_name
   unique_project_name = var.unique_project_name
   location            = "northeurope"
@@ -472,6 +472,14 @@ module "github_secrets" {
     {
       name  = "TF_AWS_WORKLOAD2_ROLE"
       value = module.aws_iam.workload2_role_arn
+    },
+    {
+      name  = "TF_AWS_ROLE_ARN_EXTERNAL_ID"
+      value = module.aws_iam.workload_external_id_role_arn
+    },
+    {
+      name  = "TF_AWS_EXTERNAL_ID"
+      value = module.aws_iam.workload_external_id_value
     },
     {
       name  = "TF_GCP_SA_CREDENTIALS"
