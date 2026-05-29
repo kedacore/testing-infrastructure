@@ -414,13 +414,16 @@ data:
     override_path = true
     EOF
 
-    # Update credentials
-    if grep "${var.azure_container_registry_enpoint}" /etc/containerd/config.toml; 
-    then 
-      echo "credentials already set, ignorning"
-    else 
+    # Drop any legacy-namespace credentials block left over from a previous install.
+    sed -i '/io\.containerd\.grpc\.v1\.cri.*registry\.configs/,+2d' /etc/containerd/config.toml
+
+    # Update credentials. Keyed on the new-namespace marker (not just the hostname) so existing legacy-namespace installs are correctly re-bootstrapped.
+    if grep -qF '[plugins."io.containerd.cri.v1.images".registry.configs."${var.azure_container_registry_enpoint}".auth]' /etc/containerd/config.toml;
+    then
+      echo "credentials already on new namespace, skipping"
+    else
       cat <<EOF >> /etc/containerd/config.toml
-    [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.azure_container_registry_enpoint}".auth]
+    [plugins."io.containerd.cri.v1.images".registry.configs."${var.azure_container_registry_enpoint}".auth]
       username = "${var.azure_container_registry_username}"
       password = "${var.azure_container_registry_password}"
     EOF
@@ -451,7 +454,7 @@ spec:
       hostPID: true
       restartPolicy: Always
       containers:
-      - image: patnaikshekhar/node-installer:1.3
+      - image: ghcr.io/kedacore/node-installer:1.3
         name: installer
         securityContext:
           privileged: true
