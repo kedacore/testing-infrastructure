@@ -7,6 +7,7 @@ type Result struct {
 	Found   int
 	Deleted int
 	Errors  int
+	DryRun  bool
 }
 
 type Cleaner interface {

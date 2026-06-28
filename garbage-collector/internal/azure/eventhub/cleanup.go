@@ -47,7 +47,7 @@ func (c *Cleaner) Name() string {
 }
 
 func (c *Cleaner) Run(ctx context.Context) core.Result {
-	result := core.Result{Name: c.Name()}
+	result := core.Result{Name: c.Name(), DryRun: c.cfg.DryRun}
 	cutoff := time.Now().Add(-c.cfg.MaxAge)
 
 	rgPager := c.rgClient.NewListPager(nil)

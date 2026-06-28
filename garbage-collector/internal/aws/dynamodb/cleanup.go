@@ -26,7 +26,7 @@ func (c *Cleaner) Name() string {
 }
 
 func (c *Cleaner) Run(ctx context.Context) core.Result {
-	result := core.Result{Name: c.Name()}
+	result := core.Result{Name: c.Name(), DryRun: c.dryRun}
 	cutoff := time.Now().Add(-c.maxAge)
 
 	pager := dynamodb.NewListTablesPaginator(c.client, &dynamodb.ListTablesInput{})
