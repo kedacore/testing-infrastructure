@@ -16,6 +16,7 @@ import (
 	azureservicebus "github.com/kedacore/testing-infrastructure/garbage-colletor/internal/azure/servicebus"
 	"github.com/kedacore/testing-infrastructure/garbage-colletor/internal/config"
 	"github.com/kedacore/testing-infrastructure/garbage-colletor/internal/core"
+	gcpspanner "github.com/kedacore/testing-infrastructure/garbage-colletor/internal/gcp/spanner"
 )
 
 func main() {
@@ -51,15 +52,21 @@ func main() {
 		fmt.Printf("azure servicebus cleaner error: %v\n", err)
 		os.Exit(1)
 	}
-
+	spannerCleaner, err := gcpspanner.New(ctx, cfg)
+	if err != nil {
+		fmt.Printf("gcp spanner cleaner error: %v\n", err)
+		os.Exit(1)
+	}
 	cleaners := []core.Cleaner{
 		ehCleaner,
 		sbCleaner,
 		awssqs.New(awsCfg, cfg.DryRun, cfg.MaxAge),
 		awskinesis.New(awsCfg, cfg.DryRun, cfg.MaxAge),
 		awsdynamodb.New(awsCfg, cfg.DryRun, cfg.MaxAge),
+		spannerCleaner,
 	}
 
 	exitCode := core.RunAll(ctx, cleaners)
+	spannerCleaner.Close()
 	os.Exit(exitCode)
 }

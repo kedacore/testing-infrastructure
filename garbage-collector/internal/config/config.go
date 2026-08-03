@@ -18,6 +18,7 @@ type Config struct {
 	AzureSubscriptionID     string
 	ExcludedSBTopicSuffixes []string
 	AWSRegion               string
+	GCPProjectID            string
 	MaxAge                  time.Duration
 	DryRun                  bool
 }
@@ -26,6 +27,11 @@ func Load(dryRun bool) (Config, error) {
 	subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
 	if subscriptionID == "" {
 		return Config{}, errors.New("AZURE_SUBSCRIPTION_ID is required")
+	}
+
+	gcpProjectID := os.Getenv("GCP_PROJECT_ID")
+	if gcpProjectID == "" {
+		return Config{}, errors.New("GCP_PROJECT_ID is required")
 	}
 
 	maxAgeHours, err := readMaxAgeHours()
@@ -37,6 +43,7 @@ func Load(dryRun bool) (Config, error) {
 		AzureSubscriptionID:     subscriptionID,
 		ExcludedSBTopicSuffixes: []string{PermanentServiceBusTopicSuffix},
 		AWSRegion:               DefaultAWSRegion,
+		GCPProjectID:            gcpProjectID,
 		MaxAge:                  time.Duration(maxAgeHours) * time.Hour,
 		DryRun:                  dryRun,
 	}, nil
