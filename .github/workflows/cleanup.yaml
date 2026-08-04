@@ -33,6 +33,13 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: eu-west-2
 
+      - name: Log into GCP using OIDC
+        id: gcp-auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -41,5 +48,6 @@ jobs:
       - name: Run garbage collector (delete)
         env:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          GCP_PROJECT_ID: ${{ steps.gcp-auth.outputs.project_id }}
         run: go run . --dry-run=false
         working-directory: garbage-collector
