@@ -6,6 +6,7 @@ locals {
 
   pr_cluster_name   = "cluster-pr"
   main_cluster_name = "cluster-nightly"
+  location          = "northeurope"
 }
 
 // ====== GRAFANA CLOUD =======
@@ -76,14 +77,14 @@ module "azuread_applications" {
   source              = "./modules/azure/managed_identities"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 }
 
 module "acr_proxy" {
   source              = "./modules/azure/registry"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 
   tags = local.tags
 }
@@ -95,7 +96,7 @@ module "azure_aks_pr" {
   kubernetes_version  = "1.36"
   cluster_name        = local.pr_cluster_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name
@@ -122,7 +123,7 @@ module "azure_aks_nightly" {
   kubernetes_version  = "1.36"
   cluster_name        = local.main_cluster_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 
   azure_monitor_workspace_id   = module.azure_monitor_stack.azure_monitor_workspace_id
   azure_monitor_workspace_name = module.azure_monitor_stack.azure_monitor_workspace_name
@@ -183,6 +184,20 @@ module "azure_data_explorer" {
   tags = local.tags
 }
 
+module "azure_cosmos_db" {
+  source              = "./modules/azure/cosmos-db"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+  location            = local.location
+
+  cosmos_admin_identities = [
+    module.azuread_applications.identity_1,
+    module.azuread_applications.identity_2
+  ]
+
+  tags = local.tags
+}
+
 module "azure_event_hub_namespace" {
   source              = "./modules/azure/event-hub-namespace"
   resource_group_name = var.azure_resource_group_name
@@ -203,7 +218,7 @@ module "azure_monitor_stack" {
   source              = "./modules/azure/monitor-stack"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 
   monitor_admin_identities = [
     module.azuread_applications.identity_1,
@@ -291,7 +306,7 @@ module "azurerm_postgres_flexible_server" {
   source              = "./modules/azure/postgres-flex-server"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 
   postgres_runtime_version = "14"
   postgres_sku_name        = "B_Standard_B1ms"
@@ -309,7 +324,7 @@ module "azurerm_sql_server" {
   source              = "./modules/azure/sql-server"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
-  location            = "northeurope"
+  location            = local.location
 
   sql_sku_name   = "Basic"
   sql_storage_gb = 1
@@ -376,6 +391,10 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_DATA_EXPLORER_ENDPOINT"
       value = module.azure_data_explorer.endpoint
+    },
+    {
+      name  = "TF_AZURE_COSMOSDB_CONNECTION_STRING"
+      value = module.azure_cosmos_db.connection_string
     },
     {
       name  = "TF_AZURE_RESOURCE_GROUP"
