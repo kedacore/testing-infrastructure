@@ -188,7 +188,7 @@ module "azure_cosmos_db" {
   source              = "./modules/azure/cosmos-db"
   resource_group_name = var.azure_resource_group_name
   unique_project_name = var.unique_project_name
-  location            = local.location
+  location            = "francecentral" // Cosmos DB is not available in northeurope by quota, so we use francecentral instead
 
   cosmos_admin_identities = [
     module.azuread_applications.identity_1,
