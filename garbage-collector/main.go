@@ -12,6 +12,7 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 
+	awsamp "github.com/kedacore/testing-infrastructure/garbage-colletor/internal/aws/amp"
 	awsdynamodb "github.com/kedacore/testing-infrastructure/garbage-colletor/internal/aws/dynamodb"
 	awskinesis "github.com/kedacore/testing-infrastructure/garbage-colletor/internal/aws/kinesis"
 	awssqs "github.com/kedacore/testing-infrastructure/garbage-colletor/internal/aws/sqs"
@@ -57,6 +58,16 @@ var factories = []cleanerFactory{
 				return nil, err
 			}
 			return azurecosmosdb.New(cred, cfg)
+		},
+	},
+	{
+		name: "aws-amp",
+		build: func(ctx context.Context, cfg config.Config, p *providers) (core.Cleaner, error) {
+			awsCfg, err := p.awsConfig(ctx, cfg)
+			if err != nil {
+				return nil, err
+			}
+			return awsamp.New(awsCfg, cfg.DryRun, cfg.MaxAge), nil
 		},
 	},
 	{
