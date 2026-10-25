@@ -16,6 +16,8 @@ resource "azurerm_managed_redis" "this" {
   sku_name            = "Balanced_B0"
   location            = var.location
   tags                = var.tags
+  
+  high_availability_enabled = false
 
   default_database {
     access_keys_authentication_enabled = false
