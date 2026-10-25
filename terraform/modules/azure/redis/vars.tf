@@ -30,3 +30,15 @@ variable "tags" {
   type        = map(any)
   description = "Tags to apply on every resource"
 }
+
+variable "sku_name" {
+  type        = string
+  description = "SKU name for the Redis instance"
+  default     = "Balanced_B0"
+}
+
+variable "high_availability_enabled" {
+  type        = bool
+  description = "Whether high availability is enabled for the Redis instance"
+  default     = false
+}

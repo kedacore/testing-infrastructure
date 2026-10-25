@@ -11,13 +11,12 @@ data "azurerm_resource_group" "rg" {
 }
 
 resource "azurerm_managed_redis" "this" {
-  name                = local.redis_cache_name
-  resource_group_name = data.azurerm_resource_group.rg.name
-  sku_name            = "Balanced_B0"
-  location            = var.location
-  tags                = var.tags
-  
-  high_availability_enabled = false
+  name                      = local.redis_cache_name
+  resource_group_name       = data.azurerm_resource_group.rg.name
+  sku_name                  = var.sku_name
+  location                  = var.location
+  tags                      = var.tags
+  high_availability_enabled = var.high_availability_enabled
 
   default_database {
     access_keys_authentication_enabled = false
