@@ -336,6 +336,16 @@ module "azurerm_sql_server" {
   tags = local.tags
 }
 
+module "azure_managed_redis" {
+  source              = "./modules/azure/redis/"
+  resource_group_name = var.azure_resource_group_name
+  unique_project_name = var.unique_project_name
+  redis_data_contributor_identities = [
+    module.azuread_applications.identity_1
+  ]
+  tags = local.tags
+}
+
 // ====== GITHUB SECRETS ======
 
 module "github_secrets" {
@@ -531,6 +541,10 @@ module "github_secrets" {
     {
       name  = "TF_AZURE_SB_EVENT_GRID_RECEIVE_TOPIC"
       value = module.azure_servicebus_namespace_event_grid.event_grid_receive_topic
+    },
+    {
+      name  = "TF_AZURE_MANAGED_REDIS_HOST"
+      value = module.azure_managed_redis.hostname
     },
   ]
 }

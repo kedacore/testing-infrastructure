@@ -16,7 +16,7 @@ terraform {
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=4.16.0"
+      version = "=4.81.0"
     }
     google = {
       source  = "hashicorp/google"
@@ -48,3 +48,4 @@ terraform {
 provider "azurerm" {
   features {}
 }
+
