@@ -24,6 +24,7 @@ module "gcp_apis" {
     "appengine.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "cloudtasks.googleapis.com",
+    "firestore.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "monitoring.googleapis.com",
