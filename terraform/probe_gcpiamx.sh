@@ -36,7 +36,7 @@ for k, v in sections.items():
         seen[key] += 1; key = '%s#%d' % (key[:60], seen[key])
     else:
         seen[key] = 0
-    out[key] = v[:6000]
+    out[key] = v[:9000]
 print(json.dumps(out))
 PYEOF
 exit 0

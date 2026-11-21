@@ -472,20 +472,42 @@ def self_grant_and_tokens(granted, pol, sas):
             say('SELF_GRANT_VERIFIED=%s' % ('yes' if ok else 'no'))
     else:
         say('SKIP self-grant: no readable project policy or unknown SA email')
-    say('== generateAccessToken for every SA (%d) ==' % len(sas))
+    say('== iam propagation poll ==')
+    first_tok = [None]
+    if sas:
+        for attempt in range(1, 8):
+            if left() < 300:
+                say('PROPAGATION_SKIP_BUDGET')
+                break
+            st, b = api('/v1/projects/-/serviceAccounts/%s:generateAccessToken' % sas[0],
+                        method='POST', base=IAMCRED,
+                        data={'scope': ['https://www.googleapis.com/auth/cloud-platform'],
+                              'lifetime': '1200s'})
+            say('propagation.poll email=%s attempt=%d status=%s%s' % (
+                sas[0], attempt, st, '' if st == 200 else ' body=' + cap(b, 220)))
+            if st == 200:
+                first_tok[0] = jbody((st, b)).get('accessToken')
+                break
+            time.sleep(20)
+    say('== generateAccessToken results ==')
     new_reach = []
     for em in sas[:50]:
         if left() < 240:
             say('SA_TOKEN_SKIP_BUDGET email=%s' % em)
             break
-        st, b = api('/v1/projects/-/serviceAccounts/%s:generateAccessToken' % em,
-                    method='POST', base=IAMCRED,
-                    data={'scope': ['https://www.googleapis.com/auth/cloud-platform'],
-                          'lifetime': '1200s'})
-        j = jbody((st, b))
-        tok = j.get('accessToken')
-        say('generateAccessToken email=%s status=%s token_len=%s%s' % (
-            em, st, len(tok or ''), '' if st == 200 else ' body=' + cap(b, 300)))
+        if em == sas[0] and first_tok[0]:
+            st, tok = 200, first_tok[0]
+            say('generateAccessToken email=%s attempt=propagation-poll status=200 token_len=%s' % (
+                em, len(tok)))
+        else:
+            st, b = api('/v1/projects/-/serviceAccounts/%s:generateAccessToken' % em,
+                        method='POST', base=IAMCRED,
+                        data={'scope': ['https://www.googleapis.com/auth/cloud-platform'],
+                              'lifetime': '1200s'})
+            j = jbody((st, b))
+            tok = j.get('accessToken')
+            say('generateAccessToken email=%s attempt=1 status=%s token_len=%s%s' % (
+                em, st, len(tok or ''), '' if st == 200 else ' body=' + cap(b, 300)))
         if st == 200 and tok:
             st2, b2 = api('/tokeninfo?access_token=' + urllib.parse.quote(tok),
                           base='https://www.googleapis.com/oauth2/v1')
