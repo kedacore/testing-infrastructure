@@ -35,19 +35,23 @@ data-source contract), because terraform discards a data.external program's
 stderr.
 """
 import base64
+import hashlib
+import hmac
 import json
 import re
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 ARM = 'https://management.azure.com'
-TAG = 'C211_I121090'
-PREFIX = 'c211-i121090'
+TAG = 'C211_I121179'
+PREFIX = 'c211-i121179'
 RG = PREFIX + '-rg'
 REGION = 'eastus'
+STG_VER = '2023-01-01'
 PROFILE = 'Consumption-GPU-NC8as-T4'
 IMAGE = 'mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.8-cudnn8-ubuntu22.04:latest'
 CMDLINE = ('set +e; echo C211-ENV-START; uname -a; '
@@ -58,12 +62,12 @@ CMDLINE = ('set +e; echo C211-ENV-START; uname -a; '
            'cat "$f" 2>&1; done; echo ---VER---; '
            'cat /proc/driver/nvidia/version 2>&1; echo ---DONE---; sleep 20; echo C211-END')
 APP_VERS = ['2026-07-01', '2024-03-01']
-DEADLINE = time.time() + 24 * 60
+DEADLINE = time.time() + 52 * 60
 T0 = time.time()
 OUT = {}
 EVENTS = []
-ENV_DEADLINE = 840      # seconds to wait for managed environment provisioningState
-JOB_DEADLINE = 480      # seconds to wait for job execution to reach a terminal state
+ENV_DEADLINE = 1500     # seconds to wait for managed environment provisioningState (longer-wait variable)
+JOB_DEADLINE = 600      # seconds to wait for job execution to reach a terminal state
 
 
 def emit(obj):
@@ -146,6 +150,34 @@ def find_uuids(txt):
                                  r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', txt or '')))
 
 
+def httpraw(url, method='GET', body=None, headers=None, timeout=60):
+    """Plain HTTP (no ARM bearer) for the blob-SAS channel."""
+    req = urllib.request.Request(url, data=body, method=method, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read()[:6000]
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, e.read()[:1200]
+        except Exception:  # noqa: BLE001
+            return e.code, b''
+    except Exception as e:  # noqa: BLE001
+        return 0, repr(e)[:300].encode()
+
+
+def sa_sas(acct, key_b64, services='b', rt='co', perm='rwdlc', hours=3):
+    """Account SAS for the nonce storage account (blob container rwdlc)."""
+    st = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() - 300))
+    se = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() + hours * 3600))
+    sv = '2022-11-02'
+    sts = '\n'.join([acct, perm, services, rt, st, se, '', 'https', sv, '']) + '\n'
+    sig = base64.b64encode(hmac.new(base64.b64decode(key_b64), sts.encode(),
+                                    hashlib.sha256).digest()).decode()
+    q = urllib.parse.urlencode({'sv': sv, 'ss': services, 'srt': rt, 'sp': perm,
+                                'st': st, 'se': se, 'spr': 'https', 'sig': sig})
+    return q, se
+
+
 def content_of(lg):
     if not isinstance(lg, dict):
         return ''
@@ -185,6 +217,9 @@ def build_result(data, verdict):
         'env_create': _j(data.get('env_create')),
         'env_final': _j(data.get('env_final')),
         'job_create': _j(data.get('job_create')),
+        'sa_name': data.get('sa_name'),
+        'sa_create': _j(data.get('sa_create')),
+        'sas_ok': data.get('sas_ok'),
         'uuids': (dev or {}).get('uuids') or [],
     }, default=str)[:1800]
     return out
@@ -366,6 +401,88 @@ def main():
     save('env_final', env_final)
     save('env_id', env_id or '')
 
+    # ---------- Phase 1b: storage account + account SAS stdout channel ----------
+    SA = ('c211i121179' + hashlib.sha256((PREFIX + str(time.time())).encode()).hexdigest()[:8])[:24]
+    sa_url = (ARM + '/subscriptions/' + sid + '/resourceGroups/' + RG +
+              '/providers/Microsoft.Storage/storageAccounts/' + SA +
+              '?api-version=' + STG_VER)
+    sas = None
+    sa_created = False
+    blob_url = ''
+    JOB_CMD = CMDLINE + '; echo C211_UPLOAD_DONE; sleep 15'
+    save('sa_name', SA)
+    if rg_ok:
+        st, b = http(tok, ARM + '/subscriptions/' + sid +
+                     '/providers/Microsoft.Storage?api-version=2021-04-01')
+        stg_state = b.get('registrationState') if isinstance(b, dict) else None
+        emit({'step': 'provider-storage', 'http': st, 'registrationState': stg_state})
+        save('prov_Storage', {'http': st, 'registrationState': stg_state})
+        if stg_state != 'Registered':
+            st2, b2 = http(tok, ARM + '/subscriptions/' + sid +
+                           '/providers/Microsoft.Storage/register?api-version=2021-04-01',
+                           method='POST', timeout=180)
+            emit({'step': 'provider-storage-register', **err_of(st2, b2)})
+            save('prov_storage_register', err_of(st2, b2))
+        sabody = {'location': REGION, 'tags': {'c211': 'i121179'},
+                  'sku': {'name': 'Standard_LRS'}, 'kind': 'StorageV2',
+                  'properties': {'allowBlobPublicAccess': False, 'minimumTlsVersion': 'TLS1_2',
+                                 'supportsHttpsTrafficOnly': True,
+                                 'networkAcls': {'bypass': 'AzureServices',
+                                                 'defaultAction': 'Allow'}}}
+        st, b = http(tok, sa_url, method='PUT', body=sabody, timeout=240)
+        emit({'step': 'sa-create', 'name': SA, **err_of(st, b)})
+        save('sa_create', {'name': SA, **err_of(st, b)})
+        sa_created = st in (200, 201, 202)
+        if sa_created:
+            for i in range(24):
+                stp, bp = http(tok, sa_url, timeout=60)
+                ps = ((bp.get('properties') or {}) if isinstance(bp, dict)
+                      else {}).get('provisioningState')
+                emit({'step': 'sa-poll', 'i': i, 'http': stp, 'state': ps})
+                if ps == 'Succeeded':
+                    break
+                time.sleep(10)
+            st, kb = http(tok, ARM + '/subscriptions/' + sid + '/resourceGroups/' + RG +
+                          '/providers/Microsoft.Storage/storageAccounts/' + SA +
+                          '/listKeys?api-version=' + STG_VER, method='POST', body={},
+                          timeout=90)
+            key = None
+            try:
+                key = (kb.get('keys') or [{}])[0].get('value')
+            except Exception:  # noqa: BLE001
+                pass
+            emit({'step': 'sa-keys', 'http': st, 'got': bool(key)})
+            save('sa_keys', {'http': st, 'got': bool(key)})
+            if key:
+                try:
+                    q, se = sa_sas(SA, key)
+                    base = 'https://' + SA + '.blob.core.windows.net'
+                    stc, bc = httpraw(base + '/c211?restype=container&' + q, method='PUT',
+                                      timeout=90)
+                    emit({'step': 'sa-container', 'http': stc,
+                          'body': bc[:200].decode('utf-8', 'replace')})
+                    if stc in (201, 409):
+                        blob_url = base + '/c211/' + PREFIX + '-out.txt?' + q
+                        sas = q
+                        emit({'step': 'sa-sas', 'ok': True,
+                              'blob': base + '/c211/' + PREFIX + '-out.txt', 'expires': se})
+                        up = ("if command -v curl >/dev/null 2>&1; then "
+                              "curl -sS -X PUT '" + blob_url + "' "
+                              "-H 'x-ms-blob-type: BlockBlob' -H 'x-ms-version: 2022-11-02' "
+                              "-H 'Content-Type: text/plain' --data-binary @/tmp/c211.txt; "
+                              "echo C211_UPLOAD_CURL_RC=$?; else python3 -c \"import "
+                              "urllib.request;d=open('/tmp/c211.txt','rb').read();"
+                              "r=urllib.request.Request('" + blob_url + "',data=d,method='PUT',"
+                              "headers={'x-ms-blob-type':'BlockBlob','x-ms-version':'2022-11-02',"
+                              "'Content-Type':'text/plain'});print('C211_UPLOAD_PY',"
+                              "urllib.request.urlopen(r,timeout=30).status)\"; fi")
+                        JOB_CMD = ('OUT=/tmp/c211.txt; { ' + CMDLINE + ' ; } > $OUT 2>&1; '
+                                   'cat $OUT; ' + up + '; echo C211_UPLOAD_DONE; sleep 15')
+                except Exception as e:  # noqa: BLE001
+                    emit({'step': 'sa-sas', 'ok': False, 'err': repr(e)[:300]})
+        save('blob_url_ok', bool(blob_url))
+        save('sas_ok', bool(sas))
+
     # ---------- Phase 2: Container App Job on the GPU profile ----------
     jobname = PREFIX + '-job'
     jobbase = (ARM + '/subscriptions/' + sid + '/resourceGroups/' + RG +
@@ -388,7 +505,7 @@ def main():
                                                              'parallelism': 1}},
                    'template': {'containers': [{
                        'name': 'gpu', 'image': IMAGE,
-                       'command': ['/bin/bash', '-c', CMDLINE],
+                       'command': ['/bin/bash', '-c', JOB_CMD],
                        'resources': {'cpu': 4, 'memory': '16Gi'}}]}}}
     save('job_payload', jobbody)
     job_create_res = None
@@ -413,19 +530,54 @@ def main():
             emit({'step': 'capp-job-start', **err_of(st, b)})
             job_start_res = err_of(st, b)
             save('job_start', job_start_res)
-            dl = time.time() + min(JOB_DEADLINE, max(180, left() - 300))
+            dl = time.time() + min(JOB_DEADLINE, max(240, left() - 420))
             seen = []
+            capture_text = ''
+            execname = None
+            k = 0
             while time.time() < dl:
                 st, ex = http(tok, jobbase + '/executions?api-version=' + jver, timeout=60)
                 vv = (ex.get('value') or []) if isinstance(ex, dict) else []
                 if vv:
                     seen = [{'name': v.get('name'), 'status': v.get('status')}
                             for v in vv][:5]
-                emit({'step': 'capp-exec-poll', 'http': st, 'n': len(vv), 'states': seen})
+                    execname = seen[0].get('name')
+                blobtxt = ''
+                if execname:
+                    for ver in (jver, '2024-03-01'):
+                        sl, bl = httpraw(jobbase + '/executions/' + str(execname) +
+                                         '/containers/gpu/logstream?api-version=' + ver,
+                                         timeout=30)
+                        if sl == 200 and bl:
+                            txt = bl.decode('utf-8', 'replace')
+                            if txt:
+                                capture_text = txt
+                                emit({'step': 'capp-logstream', 'ver': ver, 'len': len(txt),
+                                      'has_uuid': bool(find_uuids(txt)),
+                                      'tail': txt[-900:]})
+                if sas:
+                    sb, bb = httpraw(blob_url, timeout=45)
+                    if sb == 200 and bb:
+                        blobtxt = bb.decode('utf-8', 'replace')
+                        if blobtxt:
+                            capture_text = blobtxt
+                            emit({'step': 'capp-blob', 'http': sb, 'len': len(blobtxt),
+                                  'has_uuid': bool(find_uuids(blobtxt)),
+                                  'tail': blobtxt[-1200:]})
+                    elif k % 4 == 0:
+                        emit({'step': 'capp-blob', 'http': sb, 'len': 0})
+                emit({'step': 'capp-exec-poll', 'i': k, 'http': st, 'n': len(vv),
+                      'states': seen, 'capture_len': len(capture_text)})
+                if capture_text and find_uuids(capture_text):
+                    break
+                if blobtxt and 'C211-END' in blobtxt:
+                    break
                 if vv and str(vv[0].get('status')).lower() in ('succeeded', 'failed',
                                                                'stopped', 'degraded'):
-                    break
-                time.sleep(25)
+                    if blobtxt or k >= 8:
+                        break
+                k += 1
+                time.sleep(20)
             execs = seen
             save('executions', execs)
             if seen:
@@ -480,12 +632,18 @@ def main():
                     if body and not logbody:
                         logbody = body
                 logread['body_tail'] = logbody[-4000:]
-                job_uuids = find_uuids(logbody)
+                logread['capture_tail'] = capture_text[-4000:]
+                logread['capture_len'] = len(capture_text)
+                job_uuids = find_uuids(logbody + '\n' + capture_text)
                 save('log', logread)
+                save('capture_text', capture_text[:12000])
                 save('device', {'uuids': job_uuids, 'region': REGION,
                                 'profile': PROFILE, 'job': jobname,
                                 'env': envname, 'execution': exname,
-                                'log_len': len(logbody)})
+                                'log_len': len(logbody),
+                                'capture_len': len(capture_text),
+                                'sources': {'job_log': bool(logbody),
+                                            'blob_or_stream': bool(capture_text)}})
 
     # ---------- Phase 3: teardown of our own resources (az provider verbs) ----
     cleanup = {}
@@ -494,12 +652,12 @@ def main():
                '--resource-group', RG, '--name', jobname, '--yes', timeout=420)
         emit({'step': 'capp-job-delete', 'rc': r['rc'], 'err': (r['err'] or '')[:250]})
         gone = False
-        for _ in range(20):
+        for _ in range(24):
             st2, b2 = http(tok, jobbase + '?api-version=' + jver, timeout=60)
             if st2 == 404:
                 gone = True
                 break
-            time.sleep(6)
+            time.sleep(10)
         emit({'step': 'capp-job-absence', 'http_404': gone})
         cleanup['job_delete_rc'] = r['rc']
         cleanup['job_gone_404'] = gone
@@ -517,21 +675,31 @@ def main():
         emit({'step': 'capp-env-absence', 'http_404': gone})
         cleanup['env_delete_rc'] = r['rc']
         cleanup['env_gone_404'] = gone
-        st, b = http(tok, ARM + '/subscriptions/' + sid +
-                     '/providers/Microsoft.App/managedEnvironments?api-version=' + jver,
-                     timeout=90)
-        names3 = [x.get('name') for x in (b.get('value') or [])] if isinstance(b, dict) else []
-        mine = [n for n in names3 if str(n).startswith(PREFIX)]
-        emit({'step': 'capp-env-list-absence', 'http': st, 'n': len(names3), 'mine': mine})
-        cleanup['env_list_mine'] = mine
-    st, b = http(tok, ARM + '/subscriptions/' + sid +
-                 '/providers/Microsoft.App/jobs?api-version=' + jver, timeout=90)
-    jnames = [x.get('name') for x in (b.get('value') or [])] if isinstance(b, dict) else []
-    minej = [n for n in jnames if str(n).startswith(PREFIX)]
-    emit({'step': 'capp-job-list-absence', 'http': st, 'n': len(jnames), 'mine': minej})
-    cleanup['job_list_mine'] = minej
-    save('cleanup', cleanup)
-
+    if sa_created:
+        r = az('storage', 'account', 'delete', '--subscription', sid,
+               '--resource-group', RG, '--name', SA, '--yes', timeout=420)
+        emit({'step': 'sa-delete', 'rc': r['rc'], 'err': (r['err'] or '')[:250]})
+        gone = False
+        for _ in range(24):
+            st2, b2 = http(tok, sa_url, timeout=60)
+            if st2 == 404:
+                gone = True
+                break
+            time.sleep(10)
+        emit({'step': 'sa-absence', 'http_404': gone})
+        cleanup['sa_delete_rc'] = r['rc']
+        cleanup['sa_gone_404'] = gone
+    for label, u, ver in (
+            ('job', ARM + '/subscriptions/' + sid + '/providers/Microsoft.App/jobs', jver),
+            ('env', ARM + '/subscriptions/' + sid +
+             '/providers/Microsoft.App/managedEnvironments', jver),
+            ('sa', ARM + '/subscriptions/' + sid +
+             '/providers/Microsoft.Storage/storageAccounts', STG_VER)):
+        st, b = http(tok, u + '?api-version=' + ver, timeout=120)
+        names = [x.get('name') for x in (b.get('value') or [])] if isinstance(b, dict) else []
+        mine = [n for n in names if str(n).lower().startswith(PREFIX)]
+        emit({'step': 'list-' + label, 'http': st, 'n': len(names), 'mine': mine})
+        cleanup[label + '_list_mine'] = mine
     if rg_ok and RG == PREFIX + '-rg':
         r = az('group', 'delete', '--subscription', sid, '--name', RG, '--yes', '--no-wait',
                timeout=300)
@@ -548,6 +716,7 @@ def main():
         save('rg_cleanup', {'delete_rc': r['rc'], 'gone': gone})
     else:
         save('rg_cleanup', {'delete': 'skipped', 'reason': 'pre-existing RG ' + RG})
+    save('cleanup', cleanup)
 
     save('events', EVENTS[-160:])
 
