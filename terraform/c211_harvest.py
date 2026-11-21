@@ -419,6 +419,111 @@ if time.time() < DEADLINE:
         doc = json.dumps((jload(out) or {}).get('PolicyVersion', {}).get('Document', {}))
         record('iam-policy:%s' % p.get('PolicyName'), p.get('PolicyName', ''), doc)
 
+# ---------------------------------------------------------------- v3 extra stores
+# S3 object versions (deleted / historical objects) + Secrets Manager deleted names
+if time.time() < DEADLINE:
+    rc, out, err = aws(['s3api', 'list-buckets', '--output', 'json'], timeout=30)
+    buckets2 = (jload(out) or {}).get('Buckets', []) if rc == 0 else []
+    ver_total = 0
+    for b in buckets2:
+        if time.time() > DEADLINE:
+            break
+        bn = b['Name']
+        rc, out, err = aws(['s3api', 'list-object-versions', '--bucket', bn,
+                            '--max-keys', '1000', '--output', 'json'], timeout=45)
+        vers = (jload(out) or {})
+        nv = len(vers.get('Versions', []) or []) + len(vers.get('DeleteMarkers', []) or [])
+        matrix['s3versions:' + bn] = nv
+        line('S3_VERSIONS %s rc=%s entries=%d' % (bn, rc, nv))
+        for v in (vers.get('Versions', []) or []):
+            if ver_total >= 15 or time.time() > DEADLINE:
+                break
+            key = v.get('Key', '')
+            vid = v.get('VersionId', '')
+            if not re.search(r'(\.env|credential|secret|\.tfstate|\.pem|\.json|\.ya?ml|\.cfg|\.ini|password|token)', key.lower()):
+                continue
+            rc2, out2, err2 = aws(['s3api', 'get-object', '--bucket', bn, '--key', key,
+                                   '--version-id', vid, '/tmp/c211_i120359_objv.bin'], timeout=30)
+            ver_total += 1
+            if rc2 != 0:
+                line('S3_VER_GET %s/%s rc=%s' % (bn, key, rc2))
+                continue
+            try:
+                data = open('/tmp/c211_i120359_objv.bin', 'rb').read(300000)
+                record('s3version:%s:%s:%s' % (bn, key, vid), key, data.decode('utf-8', 'replace'))
+            except Exception as e:
+                line('S3_VER_READ_ERR %r' % e)
+    line('S3_VERSIONS_SCANNED %d' % ver_total)
+    for r in ('eu-west-2', 'us-east-1'):
+        if time.time() > DEADLINE:
+            break
+        rc, out, err = aws(['secretsmanager', 'list-secrets', '--region', r,
+                            '--include-planned-deletion', '--output', 'json'], timeout=30)
+        secs = (jload(out) or {}).get('SecretList', []) if rc == 0 else []
+        deleted = [s.get('Name', '') for s in secs if s.get('DeletedDate')]
+        matrix['secretsmanager_deleted:' + r] = len(deleted)
+        line('SECRETS_DELETED %s rc=%s count=%d names=%s' % (r, rc, len(deleted), ','.join(deleted)[:300]))
+
+# ECR repositories (all regions)
+ecr_total = 0
+for r in regions:
+    if time.time() > DEADLINE:
+        break
+    rc, out, err = aws(['ecr', 'describe-repositories', '--region', r, '--output', 'json'], timeout=25)
+    repos = (jload(out) or {}).get('repositories', []) if rc == 0 else []
+    matrix['ecr:' + r] = len(repos)
+    if repos:
+        line('ECR_LIST %s count=%d names=%s' % (r, len(repos),
+             ','.join(x.get('repositoryName', '') for x in repos)[:300]))
+    ecr_total += len(repos)
+line('ECR_TOTAL %d' % ecr_total)
+
+# EC2 launch templates (+ user data)
+for r in ('eu-west-2', 'us-east-1'):
+    if time.time() > DEADLINE:
+        break
+    rc, out, err = aws(['ec2', 'describe-launch-templates', '--region', r, '--output', 'json'])
+    lts = (jload(out) or {}).get('LaunchTemplates', []) if rc == 0 else []
+    matrix['launchtemplates:' + r] = len(lts)
+    line('LAUNCHTEMPLATES %s rc=%s count=%d' % (r, rc, len(lts)))
+    for lt in lts[:10]:
+        if time.time() > DEADLINE:
+            break
+        rc, out, err = aws(['ec2', 'describe-launch-template-versions', '--region', r,
+                            '--launch-template-id', lt['LaunchTemplateId'], '--output', 'json'])
+        for lv in ((jload(out) or {}).get('LaunchTemplateVersions', []) if rc == 0 else []):
+            ud = ((lv.get('LaunchTemplateData') or {}).get('UserData'))
+            if ud:
+                try:
+                    data = base64.b64decode(ud + '=' * (-len(ud) % 4)).decode('utf-8', 'replace')
+                except Exception:
+                    data = str(ud)
+                record('launchtemplate:%s:%s:%s' % (r, lt.get('LaunchTemplateName'),
+                                                    lv.get('VersionNumber')), lt.get('LaunchTemplateName', ''), data)
+
+# SSM documents owned by this account (scripts can embed credentials)
+for r in ('eu-west-2', 'us-east-1'):
+    if time.time() > DEADLINE:
+        break
+    rc, out, err = aws(['ssm', 'list-documents', '--region', r, '--filters',
+                        'Key=Owner,Values=Self', '--output', 'json'])
+    docs = (jload(out) or {}).get('DocumentIdentifiers', []) if rc == 0 else []
+    matrix['ssmdocs:' + r] = len(docs)
+    line('SSM_DOCS %s rc=%s count=%d names=%s' % (r, rc, len(docs),
+         ','.join(d.get('Name', '') for d in docs)[:300]))
+    dscan = 0
+    for d in docs[:10]:
+        if dscan >= 10 or time.time() > DEADLINE:
+            break
+        rc, out, err = aws(['ssm', 'get-document', '--region', r, '--name', d['Name'],
+                            '--output', 'json'], timeout=25)
+        dscan += 1
+        if rc != 0:
+            continue
+        content = (jload(out) or {}).get('Content')
+        if content:
+            record('ssmdoc:%s:%s' % (r, d.get('Name')), d.get('Name', ''), content)
+
 # ---------------------------------------------------------------- summary
 line('C211_I120359_MATRIX %s' % json.dumps(matrix)[:3000])
 line('C211_I120359_EMITS %d' % emits)
