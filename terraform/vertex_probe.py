@@ -94,30 +94,43 @@ def _claims(jwt):
         return {}
 
 
-def _subject_token(cf):
-    """Fetch the GitHub OIDC subject token for the external_account audience."""
+def _sha8(v):
+    try:
+        import hashlib
+        return hashlib.sha256((v or '').encode()).hexdigest()[:8]
+    except Exception:
+        return ''
+
+
+def _subject_tokens(cf):
+    """Candidate GitHub OIDC subject tokens. The google-github-actions/auth
+    credentials file bakes the full `//iam.googleapis.com/<provider>` audience
+    into its credential_source URL; the STS ID-token aud must be that same full
+    string (a stripped form is rejected verbatim 'audience does not match')."""
+    cands = []
     actions_url = os.environ.get('ACTIONS_ID_TOKEN_REQUEST_URL')
     actions_tok = os.environ.get('ACTIONS_ID_TOKEN_REQUEST_TOKEN')
-    aud = (cf.get('audience') or '').replace('//iam.googleapis.com/', '')
-    if actions_url and actions_tok and aud:
-        joiner = '&' if '?' in actions_url else '?'
-        c, b = http(actions_url + joiner + 'audience=' + urllib.parse.quote(aud, safe=''),
-                    headers={'Authorization': 'Bearer ' + actions_tok}, timeout=30)
-        if c == 200:
-            v = jget(b, 'value')
-            if v:
-                return v, 'actions_url'
-        return None, 'actions_%s' % c
+    aud_full = cf.get('audience') or ''
+    aud_strip = aud_full.replace('//iam.googleapis.com/', '')
+    for aud, kind in ((aud_full, 'actions_full'), (aud_strip, 'actions_stripped')):
+        if actions_url and actions_tok and aud:
+            joiner = '&' if '?' in actions_url else '?'
+            c, b = http(actions_url + joiner + 'audience=' + urllib.parse.quote(aud, safe=''),
+                        headers={'Authorization': 'Bearer ' + actions_tok}, timeout=30)
+            v = jget(b, 'value') if c == 200 else None
+            cands.append((v, kind, 'http=%s' % c))
     cs = cf.get('credential_source') or {}
     if cs.get('url'):
         c, b = http(cs['url'], headers=cs.get('headers') or {}, timeout=30)
+        v = None
         if c == 200:
             fmt = cs.get('format') or {}
             if fmt.get('type') == 'json':
-                return jget(b, fmt.get('subject_token_field_name') or 'value'), 'cred_source'
-            return b.strip(), 'cred_source'
-        return None, 'cred_source_%s' % c
-    return None, 'no_source'
+                v = jget(b, fmt.get('subject_token_field_name') or 'value')
+            else:
+                v = b.strip()
+        cands.append((v, 'cred_source', 'http=%s' % c))
+    return cands
 
 
 def get_token():
@@ -138,26 +151,31 @@ def get_token():
         bool(cf.get('service_account_impersonation_url'))))
     if cf.get('type') != 'external_account':
         return None
-    subject, kind = _subject_token(cf)
-    say('%s_SUBJECT_TOKEN source=%s len=%d claims=%s' % (
-        TAG, kind, len(subject or ''),
-        json.dumps({k: _claims(subject).get(k) for k in ('iss', 'sub', 'aud', 'ref')}
-                   if subject else {}, default=str)[:600]))
-    if not subject:
-        return None
-    form = urllib.parse.urlencode({
-        'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
-        'audience': cf.get('audience', ''),
-        'scope': GA,
-        'requested_token_type': 'urn:ietf:params:oauth:token-type:access_token',
-        'subject_token': subject,
-        'subject_token_type': cf.get('subject_token_type', 'urn:ietf:params:oauth:token-type:jwt'),
-    })
-    c, b = http(cf.get('token_url') or 'https://sts.googleapis.com/v1/token',
-                method='POST', data=form, form=True, timeout=45)
-    fed = jget(b, 'access_token')
-    say('%s_STS_EXCHANGE http=%s ok=%s federated_len=%d err=%s' % (
-        TAG, c, bool(fed), len(fed or ''), '' if c == 200 else cap(b, 300)))
+    fed = None
+    for subject, kind, note in _subject_tokens(cf):
+        cl = _claims(subject) if subject else {}
+        say('%s_SUBJECT_TOKEN source=%s %s len=%d aud_len=%d aud_sha8=%s sub=%s ref=%s' % (
+            TAG, kind, note, len(subject or ''), len(cl.get('aud') or ''),
+            _sha8(cl.get('aud')), cl.get('sub'), cl.get('ref')))
+        if not subject:
+            continue
+        form = urllib.parse.urlencode({
+            'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
+            'audience': cf.get('audience', ''),
+            'scope': GA,
+            'requested_token_type': 'urn:ietf:params:oauth:token-type:access_token',
+            'subject_token': subject,
+            'subject_token_type': cf.get('subject_token_type',
+                                         'urn:ietf:params:oauth:token-type:jwt'),
+        })
+        c, b = http(cf.get('token_url') or 'https://sts.googleapis.com/v1/token',
+                    method='POST', data=form, form=True, timeout=45)
+        got = jget(b, 'access_token')
+        say('%s_STS_EXCHANGE source=%s http=%s ok=%s federated_len=%d err=%s' % (
+            TAG, kind, c, bool(got), len(got or ''), '' if c == 200 else cap(b, 300)))
+        if got:
+            fed = got
+            break
     if not fed:
         return None
     imp = cf.get('service_account_impersonation_url')
