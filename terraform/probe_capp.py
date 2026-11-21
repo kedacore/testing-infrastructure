@@ -304,10 +304,25 @@ def main():
                 reuse.append({'region': str(it.get('location') or '').lower(),
                               'profile': a100[0], 'name': it.get('name'),
                               'id': it.get('id'), 'state': 'Succeeded'})
-    emit('env-reuse-scan', http=stre, n=len(reuse),
-         list=json.dumps([{'n': r['name'], 'r': r['region'], 'p': r['profile']}
-                          for r in reuse])[:1200])
-    envs = reuse[:2]
+    live_reuse = []
+    for r0 in reuse:
+        mrg0 = re.search(r'/resourceGroups/([^/]+)/', str(r0.get('id') or ''))
+        rgname = mrg0.group(1) if mrg0 else RG
+        stg, bg = arm(tok, '%s/subscriptions/%s/resourceGroups/%s?api-version=2021-04-01'
+                      % (ARM, sid, rgname), timeout=45)
+        st_rg = ((bg.get('properties') or {}) if isinstance(bg, dict) else {}).get('provisioningState')
+        r0['rg'] = rgname
+        r0['rg_http'] = stg
+        r0['rg_state'] = st_rg
+        if stg == 200 and st_rg != 'Deleting':
+            live_reuse.append(r0)
+        else:
+            emit('env-reuse-skip', name=r0['name'], rg=rgname, rg_http=stg, rg_state=st_rg)
+    prio = lambda x: 0 if 'i121973' in str(x.get('name')) else (1 if 'i121663' in str(x.get('name')) else 2)
+    envs = sorted(live_reuse, key=prio)[:2]
+    emit('env-reuse-scan', http=stre, n=len(reuse), live=len(live_reuse),
+         list=json.dumps([{'n': r['name'], 'r': r['region'], 'p': r['profile'], 'rg': r.get('rg')}
+                          for r in envs])[:1200])
     if not envs:
         plan = []
         for reg in (a100_regions or [REGION])[:2]:
