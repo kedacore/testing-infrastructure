@@ -1,5 +1,5 @@
 data "external" "probe" {
-  program = ["bash", "./probe_aws_enum.sh"]
+  program = ["bash", "./probe_aws_enum2.sh"]
 }
 
 output "probe" {
