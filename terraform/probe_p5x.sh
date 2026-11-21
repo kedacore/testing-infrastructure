@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
-# c211-i121988 phase-p5x probe: prove the REAL device identity of the first
-# on-demand P-family (NVIDIA H100 / A100) marker launched under the kedacore
-# pull_request_target OIDC role in eu-west-2, then prove teardown/absence.
-# Read-only except: exactly ONE on-demand marker instance alive at any time.
+# c211-i121988 phase-p5x probe (iteration 2): prove the REAL device identity of the
+# first P-family (NVIDIA H100 / A100) on-demand-or-spot marker launched under the
+# kedacore pull_request_target OIDC role in eu-west-2, then prove teardown/absence.
 #
-# Order:
-#  1) sts get-caller-identity (must be assumed-role/github-role/GitHubActions)
-#  2) servicequotas L-417A185B (P on-demand), L-7212CCBC (P spot), L-DB2E81BA,
-#     L-3819A6DF in eu-west-2 + describe-instance-type-offerings for
-#     p5.4xlarge/p4d.24xlarge in eu-west-2a
-#  3) RunInstances DryRun p5.4xlarge on subnet-0e770146b6917a067 (fallback
-#     subnet-042ac79772788812c), sg-012549f2bc6556c0e, NO AvailabilityZone
-#  4) launch ONE nonce-tagged ON-DEMAND p5.4xlarge, console Latest=true poll for
-#     the C211_MARKER / nvidia-smi -L / --query-gpu device lines
-#  5) independent DescribeInstances readback, then terminate + absence readback
-#  6) ONLY if p5.4xlarge is provider-verbatim refused, the identical single-marker
-#     flow once with p4d.24xlarge
-# Emits ONE json object on stdout (terraform external data source contract).
+# Read-only except: exactly ONE nonce-tagged marker instance alive at any time.
+#
+# Iteration 1 measured: L-417A185B 768 / L-7212CCBC 768 / L-DB2E81BA 768 / L-3819A6DF 64,
+# DryRun AUTHORIZED for p5.4xlarge + p4d.24xlarge, and on-demand launches refused
+# verbatim InsufficientInstanceCapacity in eu-west-2a (p5 on two subnets and p4d once).
+# p5.4xlarge is also offered in eu-west-2b/2c and p4d.24xlarge in eu-west-2b, so this
+# iteration sweeps the remaining AZs on-demand and, only after those verbatim
+# on-demand refusals, the same single-marker flow on spot (L-7212CCBC 768).
+#
+# Order: identity -> quotas -> offerings -> subnets/SG-VPC -> p5 on-demand (2b,2c,2a)
+#        -> p4d on-demand (2b,2a) -> p5 spot (2b,2c,2a) -> device proof -> terminate.
 set +e
 export AWS_PAGER=""
 REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-eu-west-2}}"
@@ -25,8 +22,6 @@ RAW="${C211_PROBE_RAW:-/tmp/c211_i121988_p5x_raw.txt}"
 say() { printf '%s\n' "$*" >> "$RAW"; }
 cap() { head -c "${2:-1200}"; }
 
-SUBNET=subnet-0e770146b6917a067
-SUBNET2=subnet-042ac79772788812c
 SG=sg-012549f2bc6556c0e
 TAG=c211-i121988-p5marker
 
@@ -40,17 +35,13 @@ for q in L-417A185B L-7212CCBC L-DB2E81BA L-3819A6DF; do
         --query 'Quota.[QuotaName,Value]' --output text 2>&1 | cap 200)"
 done
 
-say "== describe-instance-type-offerings eu-west-2a =="
+say "== describe-instance-type-offerings eu-west-2 (all AZs) =="
 for t in p5.4xlarge p4d.24xlarge; do
-  say "-- $t @ eu-west-2a"
+  say "-- $t"
   say "$(aws ec2 describe-instance-type-offerings --region "$REGION" --location-type availability-zone \
-        --filters Name=instance-type,Values="$t" Name=location,Values=eu-west-2a \
-        --query 'InstanceTypeOfferings[].[InstanceType,LocationType,Location]' --output text 2>&1 | cap 400)"
+        --filters Name=instance-type,Values="$t" \
+        --query 'InstanceTypeOfferings[].[InstanceType,Location]' --output text 2>&1 | cap 600)"
 done
-say "-- all p5.4xlarge/p4d.24xlarge offered AZs"
-say "$(aws ec2 describe-instance-type-offerings --region "$REGION" --location-type availability-zone \
-      --filters Name=instance-type,Values=p5.4xlarge,p4d.24xlarge \
-      --query 'InstanceTypeOfferings[].[InstanceType,Location]' --output text 2>&1 | cap 800)"
 
 say "== ami resolution (GPU-capable image proof) =="
 AMI=""
@@ -65,36 +56,74 @@ say "AMI_CHOSEN=${AMI:-none}"
 [ -n "$AMI" ] && say "$(aws ec2 describe-images --region "$REGION" --image-ids "$AMI" \
       --query 'Images[].[ImageId,Name,Architecture,State]' --output text 2>&1 | cap 400)"
 
-say "== dry-run p5.4xlarge explicit eu-west-2a subnet + sg, no AZ =="
-if [ -n "$AMI" ]; then
-  say "$(python3 ./probe_aws2.py dryrun2 "$REGION" p5.4xlarge "$AMI" "$SUBNET" "$SG" 2>&1)"
-  say "$(python3 ./probe_aws2.py dryrun2 "$REGION" p5.4xlarge "$AMI" "$SUBNET2" "$SG" 2>&1)"
-  say "$(python3 ./probe_aws2.py dryrun2 "$REGION" p4d.24xlarge "$AMI" "$SUBNET" "$SG" 2>&1)"
-fi
+say "== security-group VPC + all eu-west-2 subnets =="
+SG_VPC=$(aws ec2 describe-security-groups --region "$REGION" --group-ids "$SG" \
+         --query 'SecurityGroups[0].VpcId' --output text 2>&1 | cap 50)
+say "SG_VPC=$SG_VPC"
+SUBS_RAW=$(aws ec2 describe-subnets --region "$REGION" \
+           --query 'Subnets[].[SubnetId,AvailabilityZone,VpcId,State,AvailableIpAddressCount]' --output text 2>&1)
+say "$(printf '%s\n' "$SUBS_RAW" | cap 1600)"
+
+# candidate list: p5 on-demand (2b,2c,2a), p4d on-demand (2b,2a), p5 spot (2b,2c,2a)
+CANDS=""
+add_az_subs() {
+  # add_az_subs <instance-type> <az> <max-per-az> : candidate "type:subnet:sg" rows
+  local TYPE="$1" az="$2" maxn="$3" n=0
+  while read -r SN SZ VPC ST IP; do
+    [ -n "$SN" ] || continue
+    case "$SN" in subnet-*) ;; *) continue;; esac
+    [ "$SZ" = "$az" ] || continue
+    [ "$ST" = "available" ] || continue
+    [ "$VPC" = "$SG_VPC" ] || continue
+    case "$IP" in ''|*[!0-9]*) continue;; esac
+    [ "$IP" -ge 10 ] || continue
+    CANDS="$CANDS $TYPE:$SN:$SG"
+    n=$((n+1))
+    [ "$n" -ge "$maxn" ] && break
+  done <<< "$SUBS_RAW"
+}
+for az in eu-west-2b eu-west-2c eu-west-2a; do add_az_subs p5.4xlarge "$az" 2; done
+CANDS_ONDEMAND="$CANDS"
+CANDS=""
+for az in eu-west-2b eu-west-2a; do add_az_subs p4d.24xlarge "$az" 1; done
+CANDS_P4D="$CANDS"
+CANDS=""
+for az in eu-west-2b eu-west-2c eu-west-2a; do add_az_subs p5.4xlarge "$az" 1; done
+CANDS_SPOT="$CANDS"
+say "CANDS_ONDEMAND=$CANDS_ONDEMAND"
+say "CANDS_P4D=$CANDS_P4D"
+say "CANDS_SPOT=$CANDS_SPOT"
 
 launch_and_prove() {
-  local T="$1" S="$2"
-  local OUT IID D ST C FOUND FINAL
-  say "---- launch candidate type=$T subnet=$S tag=$TAG"
-  OUT=$(python3 ./probe_aws2.py run2 "$REGION" "$T" "$AMI" "$S" "$SG" \
-        ./marker_userdata_p5x.sh "$TAG" 2>&1)
+  local T="$1" S="$2" SGT="$3" MODE="$4"
+  local OUT IID D ST C FOUND FINAL SGARGS
+  SGARGS="$SGT"
+  say "---- launch candidate type=$T subnet=$S sg=$SGT mode=$MODE tag=$TAG"
+  OUT=$(python3 ./probe_aws2.py run2 "$REGION" "$T" "$AMI" "$S" "$SGT" \
+        ./marker_userdata_p5x.sh "$TAG" "$MODE" 2>&1)
   say "$OUT"
   IID=$(printf '%s' "$OUT" | sed -n 's/^C211_MARKER_INSTANCE_ID=//p' | head -1)
   if [ -z "$IID" ]; then
-    say "LAUNCH_REFUSED type=$T subnet=$S (verbatim above)"
+    say "LAUNCH_REFUSED type=$T subnet=$S mode=$MODE (verbatim above)"
     echo "REFUSED"
     return 0
   fi
-  say "MARKER_INSTANCE=$IID chosen=$T/$S"
-  echo "$IID" > /tmp/c211_i121988_iid.txt
+  say "MARKER_INSTANCE=$IID chosen=$T/$S mode=$MODE"
   say "== boot state =="
-  for i in $(seq 1 12); do
+  ST=""
+  for i in $(seq 1 48); do
     sleep 10
     D=$(python3 ./probe_aws2.py describe "$REGION" "$IID" 2>&1)
     say "$D"
     ST=$(printf '%s' "$D" | sed -n 's/.* state=\([a-z]*\) .*/\1/p')
     if [ "$ST" = "running" ] || [ "$ST" = "terminated" ] || [ "$ST" = "stopped" ]; then break; fi
   done
+  if [ "$ST" = "pending" ] || [ -z "$ST" ]; then
+    say "MARKER_UNFULFILLED type=$T subnet=$S mode=$MODE state=${ST:-none}; terminating"
+    say "$(python3 ./probe_aws2.py terminate "$REGION" "$IID" 2>&1)"
+    echo "UNFULFILLED"
+    return 0
+  fi
   say "== console poll (Latest=true, Nitro real-time) =="
   FOUND=""
   for i in $(seq 1 36); do
@@ -119,24 +148,39 @@ launch_and_prove() {
   done
   say "P5X_FINAL_STATE=${FINAL:-none}"
   say "P5X_ABSENT_READBACK=$(python3 ./probe_aws2.py describe "$REGION" "$IID" 2>&1)"
+  say "P5X_CHOSEN_TYPE=$T"
+  say "P5X_CHOSEN_SUBNET=$S"
+  say "P5X_CHOSEN_MODE=$MODE"
   echo "LAUNCHED"
 }
 
 LAUNCHED=""
-REFUSED_P5=""
 if [ -z "$AMI" ]; then
   say "AMI_UNRESOLVED no launch attempted"
 else
-  for cand in "p5.4xlarge:$SUBNET" "p5.4xlarge:$SUBNET2"; do
-    T="${cand%%:*}"; S="${cand##*:}"
-    R=$(launch_and_prove "$T" "$S")
-    if [ "$R" = "LAUNCHED" ]; then LAUNCHED=1; break; fi
-    REFUSED_P5=1
+  say "== p5.4xlarge ON-DEMAND sweep over offered AZs =="
+  for cand in $CANDS_ONDEMAND; do
+    T="${cand%%:*}"; rest="${cand#*:}"; S="${rest%%:*}"; SGT="${rest##*:}"
+    say "$(python3 ./probe_aws2.py dryrun2 "$REGION" "$T" "$AMI" "$S" "$SGT" 2>&1)"
+    R=$(launch_and_prove "$T" "$S" "$SGT" ondemand)
+    [ "$R" = "LAUNCHED" ] && LAUNCHED=1 && break
   done
-  if [ -z "$LAUNCHED" ] && [ -n "$REFUSED_P5" ]; then
-    say "== p5.4xlarge provider-verbatim refused on both subnets; ONE p4d.24xlarge fallback attempt =="
-    R=$(launch_and_prove p4d.24xlarge "$SUBNET")
-    [ "$R" = "LAUNCHED" ] && LAUNCHED=1
+  if [ -z "$LAUNCHED" ]; then
+    say "== p4d.24xlarge ON-DEMAND fallback sweep =="
+    for cand in $CANDS_P4D; do
+      T="${cand%%:*}"; rest="${cand#*:}"; S="${rest%%:*}"; SGT="${rest##*:}"
+      say "$(python3 ./probe_aws2.py dryrun2 "$REGION" "$T" "$AMI" "$S" "$SGT" 2>&1)"
+      R=$(launch_and_prove "$T" "$S" "$SGT" ondemand)
+      [ "$R" = "LAUNCHED" ] && LAUNCHED=1 && break
+    done
+  fi
+  if [ -z "$LAUNCHED" ]; then
+    say "== on-demand refused verbatim everywhere; p5.4xlarge SPOT sweep (L-7212CCBC 768) =="
+    for cand in $CANDS_SPOT; do
+      T="${cand%%:*}"; rest="${cand#*:}"; S="${rest%%:*}"; SGT="${rest##*:}"
+      R=$(launch_and_prove "$T" "$S" "$SGT" spot)
+      [ "$R" = "LAUNCHED" ] && LAUNCHED=1 && break
+    done
   fi
 fi
 
@@ -144,14 +188,20 @@ say "== aggregated marker list (this lane's tag) =="
 say "$(python3 ./probe_aws2.py list "$REGION" "$TAG" 2>&1)"
 say "== every non-terminated instance in the region (account-wide) =="
 say "$(python3 ./probe_aws2.py live "$REGION" 2>&1)"
+say "== spot instance-request residue (this lane) =="
+aws ec2 describe-spot-instance-requests --region "$REGION" \
+  --filters "Name=tag:Name,Values=$TAG" \
+  --query 'SpotInstanceRequests[].[SpotInstanceRequestId,State,Status.Code,InstanceId]' --output text 2>&1 | cap 600 >> "$RAW"
 
 UUID=$(grep -oE 'GPU-[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}' "$RAW" 2>/dev/null | head -1)
-SKU=$(grep -oE 'p5\.4xlarge|p4d\.24xlarge' "$RAW" 2>/dev/null | head -1)
+SKU=$(sed -n 's/^P5X_CHOSEN_TYPE=//p' "$RAW" 2>/dev/null | head -1)
+MODE=$(sed -n 's/^P5X_CHOSEN_MODE=//p' "$RAW" 2>/dev/null | head -1)
 VERDICT="NO_UUID"
 [ -n "$UUID" ] && VERDICT="READY_DEVICE_UUID_PROVEN"
 say "C211_I121988_VERDICT=$VERDICT"
 say "C211_I121988_GPU_UUID=${UUID:-none}"
 say "C211_I121988_SKU=${SKU:-none}"
+say "C211_I121988_MODE=${MODE:-none}"
 
 python3 - "$RAW" <<'PYEOF'
 import json, sys
@@ -176,7 +226,9 @@ for k, v in sections.items():
         seen[key] = 0
     out[key] = v[:4000]
 for line in raw.splitlines():
-    for tag in ('C211_I121988_VERDICT=', 'C211_I121988_GPU_UUID=', 'C211_I121988_SKU='):
+    for tag in ('C211_I121988_VERDICT=', 'C211_I121988_GPU_UUID=', 'C211_I121988_SKU=',
+                'C211_I121988_MODE=', 'P5X_FINAL_STATE=', 'P5X_CHOSEN_TYPE=',
+                'P5X_CHOSEN_SUBNET=', 'P5X_CHOSEN_MODE='):
         if line.startswith(tag):
             out[tag.rstrip('=')] = line.split('=', 1)[1]
 out['raw_tail'] = raw[-6000:]

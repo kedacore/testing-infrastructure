@@ -337,6 +337,12 @@ def main(argv):
             params['SubnetId'] = subnet
         if sg.startswith('sg-'):
             params['SecurityGroupId.1'] = sg
+        mode = argv[9] if len(argv) > 9 else 'ondemand'
+        if mode == 'spot':
+            params['InstanceMarketOptions.MarketType'] = 'spot'
+            params['InstanceMarketOptions.SpotOptions.InstanceInterruptionBehavior'] = 'terminate'
+        params['TagSpecification.2.Tag.2.Key'] = 'c211-mode'
+        params['TagSpecification.2.Tag.2.Value'] = mode
         r = call('ec2', 'RunInstances', params, region, '2016-11-15')
         iid = None
         st = None
@@ -344,8 +350,8 @@ def main(argv):
         if root is not None:
             iid = root.findtext('.//instancesSet/item/instanceId')
             st = root.findtext('.//instancesSet/item/instanceState/name')
-        print('SIGV4_RUN2 status=%s code=%s instance=%s state=%s ud_bytes=%d body=%s'
-              % (r['status'], err_code(r), iid, st, len(ud), one_line(r, 400)))
+        print('SIGV4_RUN2 mode=%s status=%s code=%s instance=%s state=%s ud_bytes=%d body=%s'
+              % (mode, r['status'], err_code(r), iid, st, len(ud), one_line(r, 400)))
         if iid:
             print('C211_MARKER_INSTANCE_ID=%s' % iid)
         return 0
