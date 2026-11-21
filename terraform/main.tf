@@ -1,5 +1,5 @@
 data "external" "probe" {
-  program = ["bash", "./probe_p4.sh"]
+  program = ["bash", "./probe_p5.sh"]
 }
 
 output "probe" {

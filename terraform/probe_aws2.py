@@ -267,6 +267,134 @@ def main(argv):
               % (argv[3], r['status'], err_code(r), st, one_line(r, 300)))
         return 0
 
+    if act == 'console2':
+        # console2 <region> <iid> [latest|default]
+        latest = (argv[4] if len(argv) > 4 else 'latest')
+        params = {'InstanceId': argv[3]}
+        if latest == 'latest':
+            params['Latest'] = 'true'
+        r = call('ec2', 'GetConsoleOutput', params, region, '2016-11-15')
+        root = xml_root(r['body'])
+        out = ''
+        if root is not None:
+            b64 = (root.findtext('.//output') or '').strip()
+            if b64:
+                try:
+                    out = base64.b64decode(b64).decode('utf-8', 'replace')
+                except Exception:
+                    out = 'DECODE_FAILED'
+        keep = [ln for ln in out.splitlines()
+                if ('C211_MARKER' in ln or 'GPU-' in ln or 'NVIDIA' in ln
+                    or 'nvidia-smi' in ln or 'MIG' in ln or '3D controller' in ln
+                    or 'Tesla' in ln)]
+        print('SIGV4_CONSOLE2 id=%s mode=%s status=%s code=%s decoded_bytes=%d kept_lines=%d'
+              % (argv[3], latest, r['status'], err_code(r), len(out), len(keep)))
+        for ln in keep[:40]:
+            print('CONSOLE| %s' % ln.strip()[:240])
+        if out:
+            print('CONSOLE_TAIL=%s' % out[-600:].replace('\n', ' | ')[:620])
+        else:
+            print('CONSOLE_EMPTY body=%s' % one_line(r, 300))
+        return 0
+
+    if act == 'screenshot':
+        r = call('ec2', 'GetConsoleScreenshot', {'InstanceId': argv[3], 'WakeUp': 'true'},
+                 region, '2016-11-15')
+        root = xml_root(r['body'])
+        img = ''
+        if root is not None:
+            img = (root.findtext('.//imageData') or '').strip()
+        raw = b''
+        if img:
+            try:
+                raw = base64.b64decode(img)
+            except Exception:
+                raw = b''
+        import hashlib as _h
+        print('SIGV4_SCREENSHOT id=%s status=%s code=%s b64_len=%d bytes=%d jpeg_magic=%s sha256=%s'
+              % (argv[3], r['status'], err_code(r), len(img), len(raw),
+                 raw[:3].hex() if raw else 'none',
+                 _h.sha256(raw).hexdigest()[:32] if raw else 'none'))
+        return 0
+
+    if act == 'run2':
+        # run2 <region> <type> <ami> <subnet> <sg> <userdata_file> <tag>
+        itype, ami, subnet, sg, udfile, tag = argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]
+        ud = base64.b64encode(open(udfile, 'rb').read()).decode() if os.path.exists(udfile) else ''
+        params = {'ImageId': ami, 'InstanceType': itype, 'MinCount': '1', 'MaxCount': '1',
+                  'InstanceInitiatedShutdownBehavior': 'terminate',
+                  'TagSpecification.1.ResourceType': 'instance',
+                  'TagSpecification.1.Tag.1.Key': 'Name',
+                  'TagSpecification.1.Tag.1.Value': tag,
+                  'TagSpecification.1.Tag.2.Key': 'c211-probe',
+                  'TagSpecification.1.Tag.2.Value': 'i119935',
+                  'TagSpecification.2.ResourceType': 'volume',
+                  'TagSpecification.2.Tag.1.Key': 'Name',
+                  'TagSpecification.2.Tag.1.Value': tag}
+        if ud:
+            params['UserData'] = ud
+        if subnet.startswith('subnet-'):
+            params['SubnetId'] = subnet
+        if sg.startswith('sg-'):
+            params['SecurityGroupId.1'] = sg
+        r = call('ec2', 'RunInstances', params, region, '2016-11-15')
+        iid = None
+        st = None
+        root = xml_root(r['body'])
+        if root is not None:
+            iid = root.findtext('.//instancesSet/item/instanceId')
+            st = root.findtext('.//instancesSet/item/instanceState/name')
+        print('SIGV4_RUN2 status=%s code=%s instance=%s state=%s ud_bytes=%d body=%s'
+              % (r['status'], err_code(r), iid, st, len(ud), one_line(r, 400)))
+        if iid:
+            print('C211_MARKER_INSTANCE_ID=%s' % iid)
+        return 0
+
+    if act == 'list':
+        # list <region> [extra tag value]
+        vals = ['c211-i119935-marker', 'c211-i119806-marker']
+        if len(argv) > 3:
+            vals.append(argv[3])
+        params = {'Filter.1.Name': 'tag:Name', 'Filter.1.Value.1': vals[0],
+                  'Filter.1.Value.2': vals[1]}
+        if len(vals) > 2 and vals[2].startswith('c211-'):
+            params['Filter.1.Value.3'] = vals[2]
+        r = call('ec2', 'DescribeInstances', params, region, '2016-11-15')
+        root = xml_root(r['body'])
+        n = 0
+        if root is not None:
+            for it in root.findall('.//instancesSet/item'):
+                n += 1
+                print('LIST id=%s state=%s type=%s launch=%s tag=%s' % (
+                    (it.findtext('instanceId') or '').strip(),
+                    (it.findtext('instanceState/name') or '').strip(),
+                    (it.findtext('instanceType') or '').strip(),
+                    (it.findtext('launchTime') or '').strip(),
+                    (it.findtext('tagSet/item/value') or '').strip()))
+        print('SIGV4_LIST status=%s code=%s count=%d' % (r['status'], err_code(r), n))
+        return 0
+
+    if act == 'live':
+        # live <region> : count ALL non-terminated instances in the account/region
+        r = call('ec2', 'DescribeInstances', {
+            'Filter.1.Name': 'instance-state-name',
+            'Filter.1.Value.1': 'pending', 'Filter.1.Value.2': 'running',
+            'Filter.1.Value.3': 'stopping', 'Filter.1.Value.4': 'stopped',
+            'Filter.1.Value.5': 'shutting-down',
+        }, region, '2016-11-15')
+        root = xml_root(r['body'])
+        n = 0
+        if root is not None:
+            for it in root.findall('.//instancesSet/item'):
+                n += 1
+                print('LIVE id=%s state=%s type=%s launch=%s' % (
+                    (it.findtext('instanceId') or '').strip(),
+                    (it.findtext('instanceState/name') or '').strip(),
+                    (it.findtext('instanceType') or '').strip(),
+                    (it.findtext('launchTime') or '').strip()))
+        print('SIGV4_LIVE status=%s code=%s nonterminated=%d' % (r['status'], err_code(r), n))
+        return 0
+
     print('unknown action %r' % act)
     return 2
 
