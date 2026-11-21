@@ -140,9 +140,15 @@ def unsigned_sts(action, params, version='2011-06-15', host='sts.amazonaws.com')
 
 def xml_root(body):
     try:
-        return ET.fromstring(body)
+        root = ET.fromstring(body)
     except Exception:
         return None
+    # AWS XML responses carry a default namespace; ElementTree then exposes tags as
+    # '{namespace}Tag' so plain './/Tag' lookups silently miss. Strip the namespace.
+    for el in root.iter():
+        if isinstance(el.tag, str) and '}' in el.tag:
+            el.tag = el.tag.split('}', 1)[1]
+    return root
 
 
 def err_code(res):
