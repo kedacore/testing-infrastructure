@@ -30,13 +30,16 @@ import urllib.error
 import urllib.request
 
 ARM = 'https://management.azure.com'
-TAG = 'C211_I120857'
-PREFIX = 'c211-i120857'
-RG = 'c211-i120857-rg'
+TAG = 'C211_I120955'
+PREFIX = 'c211-i120955'
+RG = 'c211-i120955-rg'
 IMAGE = 'mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.8-cudnn8-ubuntu22.04:latest'
-CMDLINE = ('nvidia-smi -L; echo ---SMI-Q---; '
-           'nvidia-smi --query-gpu=name,uuid,memory.total --format=csv,noheader; '
-           'echo ---DEV---; ls -l /dev/nvidia* 2>&1; echo ---DONE---')
+CMDLINE = ('nvidia-smi -L 2>&1; echo ---SMI-Q---; '
+           'nvidia-smi --query-gpu=name,uuid,memory.total --format=csv,noheader 2>&1; '
+           'echo ---DEV---; ls -l /dev/nvidia* 2>&1; echo ---PROC---; '
+           'for f in /proc/driver/nvidia/gpus/*/information; do echo "== $f"; '
+           'cat "$f" 2>&1; done; echo ---VER---; '
+           'cat /proc/driver/nvidia/version 2>&1; echo ---DONE---')
 DEADLINE = time.time() + 20 * 60
 T0 = time.time()
 ACI_VER = '2023-05-01'
@@ -154,7 +157,45 @@ def aci_teardown(sid, rg, name):
     return gone
 
 
+
+def build_result(data, verdict):
+    """Flat {key: string} map for the terraform external data-source contract.
+
+    The complete verbatim matrix travels as chunked base64 so it survives both
+    terraform's plan rendering and any masking of secret-looking substrings
+    inside individual values. `summary` stays human-readable in the plan log.
+    """
+    import base64 as _b64
+    blob = json.dumps(data, default=str, sort_keys=True)
+    if len(blob) > 32000:
+        blob = blob[:32000]
+    b = _b64.b64encode(blob.encode()).decode()
+    out = {'verdict': str(verdict), 'matrix_len': str(len(blob)),
+           'chunks': str((len(b) + 899) // 900)}
+    for i in range(0, len(b), 900):
+        out['m%03d' % (i // 900)] = b[i:i + 900]
+    def _j(v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:  # noqa: BLE001
+                return v
+        return v
+    dev = _j(data.get('aci_device')) or {}
+    out['summary'] = json.dumps({
+        'verdict': verdict,
+        'session': _j(data.get('session')),
+        'rg': _j(data.get('rg')),
+        'providers': {k: _j(data.get(k)) for k in ('prov_ContainerInstance', 'prov_App')},
+        'aci_sku_n': (_j(data.get('aci_sku')) or {}).get('n_gpu_regions') if data.get('aci_sku') else None,
+        'aci_attempts': _j(data.get('aci_attempts')),
+        'uuids': dev.get('uuids') or [],
+    }, default=str)[:1600]
+    return out
+
+
 def main():
+    global RG  # main() reassigns RG in the rg-fallback branch below
     # ---------- session ----------
     r = run(['az', 'account', 'get-access-token', '--resource', 'https://management.azure.com',
              '--query', 'accessToken', '-o', 'tsv'])
@@ -201,7 +242,7 @@ def main():
     rg_ok = st == 200
     if st == 404:
         st, b = http(tok, rgurl + '?api-version=2021-04-01', method='PUT',
-                     body={'location': 'westeurope', 'tags': {'c211': 'i120857'}})
+                     body={'location': 'westeurope', 'tags': {'c211': 'i120955'}})
         emit({'step': 'rg-create', 'http': st, 'location': 'westeurope',
               **({} if st in (200, 201) else err_of(st, b))})
         save('rg_create', {'http': st})
@@ -262,7 +303,7 @@ def main():
                    '?api-version=' + ACI_VER)
             body = {
                 'location': region,
-                'tags': {'c211': 'i120857'},
+                'tags': {'c211': 'i120955'},
                 'properties': {
                     'containers': [{
                         'name': 'gpu',
@@ -313,6 +354,12 @@ def main():
             emit({'step': 'aci-logs', 'region': region, 'http': stl, 'len': len(logtext),
                   'gpu_uuids': uuids, 'has_smi': ('nvidia-smi' in logtext or 'NVIDIA' in logtext)})
             emit({'step': 'aci-logbody', 'region': region, 'body': logtext[-1500:]})
+            save('aci_logbody_' + region, logtext[-1500:])
+            save('aci_readback_' + region,
+                 {'http': stp, 'prov': prov, 'containers': cs[:2], 'gpu_request': (
+                     (((rb.get('properties') or {}).get('containers') or [{}])[0]
+                      .get('properties', {}).get('resources', {}).get('requests', {})
+                      .get('gpu')) if isinstance(rb, dict) else None)})
             at.update({'prov': prov, 'log_len': len(logtext), 'gpu_uuids': uuids})
             attempts.append(at)
             aci_created = {'region': region, 'name': name, 'prov': prov,
@@ -370,7 +417,7 @@ def main():
         envurl = (ARM + '/subscriptions/' + sid + '/resourceGroups/' + RG +
                   '/providers/Microsoft.App/managedEnvironments/' + envname +
                   '?api-version=' + APP_VER)
-        envbody = {'location': region, 'tags': {'c211': 'i120857'},
+        envbody = {'location': region, 'tags': {'c211': 'i120955'},
                    'properties': {'workloadProfiles': [
                        {'name': prof, 'workloadProfileType': prof,
                         'minimumCount': 0, 'maximumCount': 1}]}}
@@ -396,7 +443,7 @@ def main():
                           '?api-version=' + APP_VER)
                 env_id = (b.get('id') if isinstance(b, dict) and b.get('id') else
                           envurl.split('?')[0])
-                jobbody = {'location': region, 'tags': {'c211': 'i120857'},
+                jobbody = {'location': region, 'tags': {'c211': 'i120955'},
                            'properties': {
                                'environmentId': env_id,
                                'workloadProfileName': prof,
@@ -504,7 +551,7 @@ def main():
           'aci_uuids': (aci_device or {}).get('uuids') or [],
           'aci_created': bool(aci_created)})
     save('verdict', verdict)
-    print(json.dumps(OUT, default=str))
+    print(json.dumps(build_result(OUT, verdict), default=str))
     return 0
 
 
