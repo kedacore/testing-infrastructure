@@ -303,12 +303,28 @@ def images():
     say('== gpu image families ==')
     got = []
     for fam in ('common-cu129-ubuntu-2204', 'common-cu126-ubuntu-2204',
-                'common-cu124-ubuntu-2204', 'common-cu121-ubuntu-2204'):
+                'common-cu124-ubuntu-2204', 'common-cu123-ubuntu-2204',
+                'common-cu121-ubuntu-2204', 'common-cu121-ubuntu-2004',
+                'common-cu118-ubuntu-2004', 'pytorch-latest-gpu', 'tf-latest-gpu'):
         st, b = api('/projects/deeplearning-platform-release/global/images/family/' + fam)
-        say('dlvm.%s status=%s%s' % (fam, st, '' if st == 200 else ' body=' + cap(b, 200)))
+        say('dlvm.%s status=%s%s' % (fam, st, '' if st == 200 else ' body=' + cap(b, 160)))
         if st == 200:
             j = jbody((st, b))
             got.append({'family': fam, 'sourceImage': j.get('selfLink'), 'name': j.get('name')})
+            break
+    if not got:
+        st, b = api('/projects/deeplearning-platform-release/global/images?maxResults=500'
+                    '&fields=items%28family%2Cname%2Cstatus%2CselfLink%29')
+        say('dlvm.list status=%s%s' % (st, '' if st == 200 else ' body=' + cap(b, 300)))
+        if st == 200:
+            for it in (jbody((st, b)).get('items') or []):
+                fam = it.get('family') or ''
+                if it.get('status') == 'READY' and re.search(r'(cu12|pytorch|tensorflow|nvidia)', fam):
+                    got.append({'family': fam, 'sourceImage': it.get('selfLink'),
+                                'name': it.get('name')})
+                    if len(got) >= 2:
+                        break
+            say('dlvm.list.picked=%s' % json.dumps([g['family'] for g in got])[:400])
     if not got:
         st, b = api('/projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts')
         say('ubuntu-2204-lts status=%s%s' % (st, '' if st == 200 else ' body=' + cap(b, 250)))
@@ -349,14 +365,18 @@ def inst_body(zone, machine_type, accel, image, with_driver_install,
         script = script.replace(
             'if command -v nvidia-smi',
             'if ! command -v nvidia-smi >/dev/null 2>&1; then\n'
-            '  (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq'
-            ' nvidia-driver-535) >/dev/null 2>&1\n  modprobe nvidia 2>/dev/null\nfi\n'
+            '  (apt-get update -qq; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq'
+            ' linux-headers-$(uname -r); DEBIAN_FRONTEND=noninteractive apt-get install -y -qq'
+            ' nvidia-driver-535; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq'
+            ' nvidia-dkms-535) >/dev/null 2>&1\n  modprobe nvidia 2>/dev/null\nfi\n'
             'if command -v nvidia-smi')
     return {
         'name': NAME,
         'machineType': 'projects/%s/zones/%s/machineTypes/%s' % (PROJECT, zone, machine_type),
         'disks': [{'boot': True, 'autoDelete': True, 'initializeParams': {
-            'sourceImage': image, 'diskSizeGb': '100', 'diskType': 'pd-standard'}}],
+            'sourceImage': image, 'diskSizeGb': '100',
+            'diskType': 'https://www.googleapis.com/compute/v1/projects/%s/zones/%s/diskTypes/pd-standard'
+                        % (PROJECT, zone)}}],
         'networkInterfaces': [dict(
             {'network': network or 'global/networks/default'},
             **({'subnetwork': subnetwork} if subnetwork else {}),
