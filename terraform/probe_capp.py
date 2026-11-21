@@ -266,7 +266,7 @@ def main():
             if ps == 'Succeeded':
                 break
             time.sleep(8)
-        st, kb = arm(tok, saurl + '/listKeys?api-version=' + STG_VER, method='POST', body={},
+        st, kb = arm(tok, saurl.split('?')[0] + '/listKeys?api-version=' + STG_VER, method='POST', body={},
                      timeout=90)
         key = None
         try:
@@ -370,7 +370,7 @@ def main():
 
     # ---------- jobs ----------
     jobs = []
-    wcounter = [0]
+    wcounter = [4]
     def make_jobs(envlist):
         for e in envlist:
             mrg = re.search(r'/resourceGroups/([^/]+)/', str(e.get('id') or ''))
@@ -446,14 +446,14 @@ def main():
             make_jobs([own])
 
     # ---------- short capture poll ----------
-    dl = time.time() + min(420, max(60, left() - 30))
+    dl = time.time() + min(1500, max(600, left() - 60))
     i = 0
     while time.time() < dl:
         for rec in jobs:
             if not rec['exec']:
                 continue
             base = ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/jobs/%s'
-                    % (ARM, sid, RG, rec['name']))
+                    % (ARM, sid, rec.get('rg') or RG, rec['name']))
             stp, bp = arm(tok, '%s/executions/%s?api-version=%s'
                           % (base, rec['exec'], APP_VERS[0]), timeout=60)
             p = (bp.get('properties') or {}) if isinstance(bp, dict) else {}
