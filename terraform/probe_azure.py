@@ -130,9 +130,10 @@ def main():
     if not get_token():
         say('verdict', 'GATE_NO_ARM_TOKEN')
         return
-    st, acct = az('account', 'show', '-o', 'json')
-    if st != 0:
+    rc, acct, aerr = az('account', 'show', '-o', 'json')
+    if rc != 0:
         say('verdict', 'GATE_ACCOUNT_SHOW_FAILED')
+        say('account_show_err', aerr)
         return
     try:
         a = json.loads(acct)
@@ -235,8 +236,6 @@ def choose_target(nonzero, skus):
 
 
 def deploy_marker(nonzero, skus, locs):
-    st, orows = http('GET', '/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
-                     % (SUB, sorted(nonzero)[0], GENERIC))
     region, size, vc, row = choose_target(nonzero, skus)
     say('chosen', {'region': region, 'size': size, 'vcpu': vc, 'quota_row': row})
     if not region:
@@ -376,8 +375,8 @@ def deploy_marker(nonzero, skus, locs):
                 lspci = msg[:400]
         say('device_proof', proof or 'NONE')
         say('lspci_proof', lspci or 'NONE')
-        say('gpu_uuid', (re.search(r'GPU-[0-9a-fA-F-]{20,}', proof or '') or [None]) and
-            (re.search(r'GPU-[0-9a-fA-F-]{20,}', proof).group(0)) or 'NONE')
+        m = re.search(r'GPU-[0-9a-fA-F-]{20,}', proof or '')
+        say('gpu_uuid', m.group(0) if m else 'NONE')
         say('verdict', 'MARKER_PROVEN' if proof else ('GATE_NO_DEVICE_PROOF_LSPCI_%s' % ('YES' if lspci else 'NO')))
     finally:
         teardown(cleanup)
