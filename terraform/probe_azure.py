@@ -103,7 +103,18 @@ def get_token():
     return False
 
 
-GPU_RE = re.compile(r'(NCA|NCC|NCS|NCAD|ND|NV|NC\b|GPU)', re.I)
+def is_gpu_usage(nm, code):
+    """True only for genuine NC/ND/NV GPU-family vCPU quota rows.
+
+    Anchored on the localized name (the real KEDA-OSS rows are e.g.
+    'Standard NCASv3_T4 Family vCPUs' and 'StandardNDISRGB200V6NDRFamily vCPUs').
+    A bare case-insensitive 'ND'/'NV' pattern must never be used: 'Standard'
+    itself contains 'nd', and the non-GPU internal row 'InternalNDM Sv 1 Family
+    vCPUs' (limit 65) contains 'NDM'."""
+    n = (nm or '').strip()
+    if n:
+        return bool(re.match(r'^Standard\s*(NC|ND|NV)', n))
+    return bool(re.match(r'^standard(NC|ND|NV)[A-Za-z0-9_]*$', code or ''))
 
 
 def pick_gpu_regions(locations, skus):
@@ -121,18 +132,29 @@ def pick_gpu_regions(locations, skus):
     return {r: sorted(v) for r, v in regions.items() if r.lower() in known}
 
 
+USAGE_VERSIONS = ('2024-07-01', '2021-07-01', '2019-07-01')
+
+
 def region_usage(sub, region):
-    st, rows, err = arm_list('/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
-                            % (sub, region, GENERIC))
+    st, rows, err = 400, None, ''
+    used = GENERIC
+    for ver in USAGE_VERSIONS:
+        st, rows, err = arm_list('/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
+                                 % (sub, region, ver))
+        used = ver
+        if st == 200 and rows is not None:
+            break
+        if 'NoRegisteredProviderFound' not in str(err) and 'api-version' not in str(err):
+            break
     if st != 200 or rows is None:
-        return region, st, [], err or 'NO_LIST'
+        return region, st, [], err or 'NO_LIST', used
     out = []
     for u in rows:
         nm = (u.get('name') or {}).get('localizedValue') or (u.get('name') or {}).get('value') or ''
         code = (u.get('name') or {}).get('value') or ''
-        if GPU_RE.search(nm) or GPU_RE.search(code):
+        if is_gpu_usage(nm, code):
             out.append({'name': nm, 'limit': u.get('limit') or 0, 'current': u.get('currentValue') or 0})
-    return region, st, out, ''
+    return region, st, out, '', used
 
 
 def scan_subscription(sub):
@@ -145,20 +167,32 @@ def scan_subscription(sub):
         return {'locations_http': 200, 'region_count': len(locs), 'skus_http': st, 'skus_err': err, 'nonzero': {}}
     gpu_regions = pick_gpu_regions(locs, skus)
     res = {'region_count': len(locs), 'sku_count': len(skus),
-           'gpu_family_regions': sorted(gpu_regions), 'nonzero': {}, 'usage_errors': {}}
+           'gpu_family_regions': sorted(gpu_regions), 'nonzero': {}, 'usage_errors': {},
+           'gpu_limits': {}, 'gpu_usage_rows': 0, 'regions_scanned': 0,
+           'gpu_rows_by_region': {}, 'gpu_max_limit_by_region': {}, 'usage_api_versions': {}}
     with cf.ThreadPoolExecutor(max_workers=8) as ex:
         futs = {ex.submit(region_usage, sub, r): r for r in gpu_regions}
         for f in cf.as_completed(futs):
             try:
-                r, code, rows, uerr = f.result()
+                r, code, rows, uerr, ver = f.result()
             except Exception as e:
                 res['usage_errors']['?'] = repr(e)[:100]
                 continue
             if uerr:
                 res['usage_errors'][r] = '%s %s' % (code, uerr)
+            if code == 200:
+                res['regions_scanned'] += 1
+                res['gpu_rows_by_region'][r] = len(rows)
+                res['gpu_max_limit_by_region'][r] = max([x['limit'] for x in rows] or [0])
+                res['usage_api_versions'][r] = ver
+            res['gpu_usage_rows'] += len(rows)
             pos = [x for x in rows if (x['limit'] or 0) > (x['current'] or 0)]
             if pos:
                 res['nonzero'][r] = pos
+            # every configured (limit>0) NC/ND/NV family limit, even if fully used
+            lim = [x for x in rows if (x['limit'] or 0) > 0]
+            if lim:
+                res['gpu_limits'][r] = lim
     return res
 
 
@@ -186,6 +220,7 @@ def main():
     say('subscriptions', [{'id': s.get('subscriptionId') or s.get('id'),
                            'name': s.get('displayName') or s.get('name'),
                            'state': s.get('state')} for s in subs])
+    cleanup_leftover(subs)
 
     scan = {}
     best = None
@@ -429,6 +464,38 @@ def teardown(sid, rg):
         if gone == '404':
             break
     say('rg_absent_readback', {'state': gone})
+
+
+def cleanup_leftover(subs):
+    """Delete any marker resource group left behind by an earlier probe run
+    (same fixed TAG), in every visible subscription, and verify absence.
+    This is our own resource, cleanup is pre-authorized."""
+    rg = '%s-rg' % TAG
+    gone_all = True
+    for s in subs:
+        sid = s.get('subscriptionId') or s.get('id') or ''
+        if not sid or (s.get('state') or '').lower() not in ('enabled', ''):
+            continue
+        rc, out, err = az('group', 'exists', '--subscription', sid, '--name', rg, timeout=90)
+        exists = (out or '').strip().lower() == 'true'
+        say('leftover_%s_exists' % sid[-6:], {'rc': rc, 'exists': exists, 'err': (err or '')[:160]})
+        if not exists:
+            continue
+        az('vm', 'delete', '--subscription', sid, '--resource-group', rg,
+           '--name', '%s-vm' % TAG, '--yes', '--output', 'json', timeout=600)
+        rc, out, err = az('group', 'delete', '--subscription', sid, '--name', rg, '--yes', '--no-wait', timeout=300)
+        say('leftover_%s_delete' % sid[-6:], {'rc': rc, 'err': (err or '')[:200]})
+        st404 = False
+        for _ in range(30):
+            time.sleep(8)
+            rc, out, err = az('group', 'show', '--subscription', sid, '--name', rg, '--output', 'json')
+            low = (err or '').lower()
+            if 'resourcenotfound' in low or 'not found' in low or 'could not be found' in low:
+                st404 = True
+                break
+        say('leftover_%s_absent_readback' % sid[-6:], {'state': '404' if st404 else 'STILL_PRESENT'})
+        gone_all = gone_all and st404
+    say('leftover_cleanup_verdict', 'ABSENT' if gone_all else 'LEFTOVER_PRESENT')
 
 
 if __name__ == '__main__':
