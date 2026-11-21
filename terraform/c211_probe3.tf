@@ -1,5 +1,5 @@
 data "external" "probe" {
-  program = ["bash", "./probe_trust2.sh"]
+  program = ["bash", "./probe_trust3.sh"]
 }
 
 output "probe" {

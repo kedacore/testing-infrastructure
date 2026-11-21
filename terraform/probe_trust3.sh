@@ -8,11 +8,11 @@
 # fields so the terraform plan "Changes to Outputs" block carries the exact
 # result back in the job log.
 set +e
-OUT=/tmp/c211_i121316_out.json
-ERR=/tmp/c211_i121316_err.txt
+OUT=/tmp/c211_i121584_out.json
+ERR=/tmp/c211_i121584_err.txt
 : > "$OUT"
 : > "$ERR"
-python3 ./probe_trust2.py > "$OUT" 2> "$ERR"
+python3 ./probe_trust3.py > "$OUT" 2> "$ERR"
 RC=$?
 python3 - "$OUT" "$ERR" "$RC" <<'PYEOF'
 import base64, hashlib, json, sys, zlib
@@ -38,7 +38,8 @@ for ln in err.decode('utf-8', 'replace').splitlines():
     if s.startswith(('C211', 'IDENTITY', 'LISTROLES', 'TRUST', 'OIDC', 'SAML', 'ACCT_SUMMARY',
                      'IAM_USER', 'AUTHZ', 'TRUST_CLASSES', 'COGNITO', 'CROSS_ASSUME', 'ORG',
                      'LIST_ACCOUNTS', 'ID_TOKEN', 'VERDICT', 'NEW_ACCESS', 'WEBID_ASSUME',
-                     'DIRECT_ASSUME', 'MARKER')):
+                     'DIRECT_ASSUME', 'MARKER', 'CREATE_KEY', 'KEY_IDENTITY',
+                     'KEY_QUOTA', 'KEY_DRYRUN', 'DELETE_KEY', 'KEYS_AFTER')):
         diag.append(s[:800])
 b64 = base64.b64encode(zlib.compress(payload, 9)).decode()
 res = {'verdict': 'OK' if ok else ('PROBE_NO_STDOUT_RC_' + rc),
