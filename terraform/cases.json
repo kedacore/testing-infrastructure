@@ -1,0 +1,533 @@
+[
+ {
+  "i": 0,
+  "res": "projects/1016117555218/locations/global/workloadIdentityPools/github-actions-pool/providers/aws-lambda-provider",
+  "proj": "1016117555218",
+  "pool": "github-actions-pool",
+  "prov": "aws-lambda-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "1016117555218-compute@developer.gserviceaccount.com",
+   "gdrive-obsidian@daily-notes-obsidian-gdrive.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 1,
+  "res": "projects/1024643519701/locations/global/workloadIdentityPools/imager-houessou-com-federation/providers/houessou-aws",
+  "proj": "1024643519701",
+  "pool": "imager-houessou-com-federation",
+  "prov": "houessou-aws",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "1024643519701-compute@developer.gserviceaccount.com",
+   "imager-houessou-com-firestore@imager-houessou-com-328312.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 2,
+  "res": "projects/1054240616692/locations/global/workloadIdentityPools/breadsheet-dev/providers/aws-ecs",
+  "proj": "1054240616692",
+  "pool": "breadsheet-dev",
+  "prov": "aws-ecs",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "1054240616692-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 3,
+  "res": "projects/1073448463387/locations/global/workloadIdentityPools/personal-aws/providers/personal-aws-provider",
+  "proj": "1073448463387",
+  "pool": "personal-aws",
+  "prov": "personal-aws-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "1073448463387-compute@developer.gserviceaccount.com",
+   "alphabet-superset-aws@alphabet-superset.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 4,
+  "res": "projects/1081576340476/locations/global/workloadIdentityPools/h-dcn-aws-pool/providers/aws-lambda-provider",
+  "proj": "1081576340476",
+  "pool": "h-dcn-aws-pool",
+  "prov": "aws-lambda-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "1081576340476-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 5,
+  "res": "projects/1086849180150/locations/global/workloadIdentityPools/youtube-demo/providers/youtube-demo-provider",
+  "proj": "1086849180150",
+  "pool": "youtube-demo",
+  "prov": "youtube-demo-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "1086849180150-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 6,
+  "res": "projects/1098170562622/locations/global/workloadIdentityPools/aws-pool-20260406/providers/aws-provider",
+  "proj": "1098170562622",
+  "pool": "aws-pool-20260406",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "1098170562622-compute@developer.gserviceaccount.com",
+   "allow-calendar-api@aws-gcp-workload.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 7,
+  "res": "projects/155386645138/locations/global/workloadIdentityPools/aws-eb-pool/providers/aws-eb-provider",
+  "proj": "155386645138",
+  "pool": "aws-eb-pool",
+  "prov": "aws-eb-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "155386645138-compute@developer.gserviceaccount.com",
+   "bigquery-viewer@analytics-482304.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 8,
+  "res": "projects/225214888828/locations/global/workloadIdentityPools/astral-map/providers/aws-astral-map-provider",
+  "proj": "225214888828",
+  "pool": "astral-map",
+  "prov": "aws-astral-map-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "225214888828-compute@developer.gserviceaccount.com",
+   "sheetmonitor@astralapp.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 9,
+  "res": "projects/287499747081/locations/global/workloadIdentityPools/aws-pool/providers/aws-pool",
+  "proj": "287499747081",
+  "pool": "aws-pool",
+  "prov": "aws-pool",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "287499747081-compute@developer.gserviceaccount.com",
+   "lambda-role@plantsociety.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 10,
+  "res": "projects/357029287606/locations/global/workloadIdentityPools/aws-lambda-pool/providers/aws-lambda",
+  "proj": "357029287606",
+  "pool": "aws-lambda-pool",
+  "prov": "aws-lambda",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "357029287606-compute@developer.gserviceaccount.com",
+   "cosmonaut-vertex-ai@cosmonaut-481723.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 11,
+  "res": "projects/362542744058/locations/global/workloadIdentityPools/aws-sam-datajam/providers/0000",
+  "proj": "362542744058",
+  "pool": "aws-sam-datajam",
+  "prov": "0000",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "362542744058-compute@developer.gserviceaccount.com",
+   "aws-sam-3@datajam-438419.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 12,
+  "res": "projects/397616891695/locations/global/workloadIdentityPools/fortexa-aws-pool/providers/fortexa-aws-provider",
+  "proj": "397616891695",
+  "pool": "fortexa-aws-pool",
+  "prov": "fortexa-aws-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "397616891695-compute@developer.gserviceaccount.com",
+   "gemini-backend@fortexa-495604.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 13,
+  "res": "projects/44335030545/locations/global/workloadIdentityPools/neohearts-pool/providers/ec2proventus",
+  "proj": "44335030545",
+  "pool": "neohearts-pool",
+  "prov": "ec2proventus",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "44335030545-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 14,
+  "res": "projects/449811276698/locations/global/workloadIdentityPools/awspool/providers/aws-admin",
+  "proj": "449811276698",
+  "pool": "awspool",
+  "prov": "aws-admin",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "449811276698-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 15,
+  "res": "projects/48101442817/locations/global/workloadIdentityPools/aws-runtime/providers/aws-provider",
+  "proj": "48101442817",
+  "pool": "aws-runtime",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "48101442817-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 16,
+  "res": "projects/498773744730/locations/global/workloadIdentityPools/anyscale-ci-aws/providers/aws-anyscale",
+  "proj": "498773744730",
+  "pool": "anyscale-ci-aws",
+  "prov": "aws-anyscale",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "498773744730-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 17,
+  "res": "projects/542237184187/locations/global/workloadIdentityPools/aws-pool/providers/aws-provider",
+  "proj": "542237184187",
+  "pool": "aws-pool",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "542237184187-compute@developer.gserviceaccount.com",
+   "lambda-invoker@fit5225-ecolens-group111.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 18,
+  "res": "projects/588427757320/locations/global/workloadIdentityPools/gcpwoz/providers/awswoz",
+  "proj": "588427757320",
+  "pool": "gcpwoz",
+  "prov": "awswoz",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "588427757320-compute@developer.gserviceaccount.com",
+   "woz-sa@cs464-454011.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 19,
+  "res": "projects/588427757320/locations/global/workloadIdentityPools/gcpwoz/providers/awswoz-dev",
+  "proj": "588427757320",
+  "pool": "gcpwoz",
+  "prov": "awswoz-dev",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "588427757320-compute@developer.gserviceaccount.com",
+   "woz-sa@cs464-454011.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 20,
+  "res": "projects/607309422382/locations/global/workloadIdentityPools/aws-pool/providers/aws-provider",
+  "proj": "607309422382",
+  "pool": "aws-pool",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "607309422382-compute@developer.gserviceaccount.com",
+   "sheets-writer@grand-incentive-428409-j0.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 21,
+  "res": "projects/639514832012/locations/global/workloadIdentityPools/sap-rti-wip-integration-pool/providers/sap-aws-rti",
+  "proj": "639514832012",
+  "pool": "sap-rti-wip-integration-pool",
+  "prov": "sap-aws-rti",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "639514832012-compute@developer.gserviceaccount.com",
+   "collectors@sap-real-time-inventory-core.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 22,
+  "res": "projects/652143064623/locations/global/workloadIdentityPools/aws1/providers/aws1",
+  "proj": "652143064623",
+  "pool": "aws1",
+  "prov": "aws1",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "652143064623-compute@developer.gserviceaccount.com",
+   "awscloud@isha-automations-231309.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 23,
+  "res": "projects/687299627564/locations/global/workloadIdentityPools/aws1/providers/aws-pool1",
+  "proj": "687299627564",
+  "pool": "aws1",
+  "prov": "aws-pool1",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "687299627564-compute@developer.gserviceaccount.com",
+   "vertex-ai@chatbot-428611.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 24,
+  "res": "projects/735286731147/locations/global/workloadIdentityPools/aws-pool/providers/aws-provider",
+  "proj": "735286731147",
+  "pool": "aws-pool",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "735286731147-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 25,
+  "res": "projects/739355857021/locations/global/workloadIdentityPools/oishi-google-translate-pool-id/providers/aws-oidc-provider",
+  "proj": "739355857021",
+  "pool": "oishi-google-translate-pool-id",
+  "prov": "aws-oidc-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "739355857021-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 26,
+  "res": "projects/756781577442/locations/global/workloadIdentityPools/test-pool/providers/aws-provider",
+  "proj": "756781577442",
+  "pool": "test-pool",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "756781577442-compute@developer.gserviceaccount.com",
+   "bq-service-account@seismic-sunbeam-227401.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 27,
+  "res": "projects/79992041559/locations/global/workloadIdentityPools/pool-73wslmxn/providers/aws-73wslmxn",
+  "proj": "79992041559",
+  "pool": "pool-73wslmxn",
+  "prov": "aws-73wslmxn",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "79992041559-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 28,
+  "res": "projects/828407182283/locations/global/workloadIdentityPools/jenkins-dev-pool/providers/jenkins-aws-provider-01",
+  "proj": "828407182283",
+  "pool": "jenkins-dev-pool",
+  "prov": "jenkins-aws-provider-01",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "828407182283-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 29,
+  "res": "projects/847869831239/locations/global/workloadIdentityPools/maps-identity-pool/providers/aws-provider",
+  "proj": "847869831239",
+  "pool": "maps-identity-pool",
+  "prov": "aws-provider",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "847869831239-compute@developer.gserviceaccount.com",
+   "datefinder-service-account@sacred-vigil-426421-n8.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 30,
+  "res": "projects/870183222406/locations/global/workloadIdentityPools/charalarm-aws/providers/development",
+  "proj": "870183222406",
+  "pool": "charalarm-aws",
+  "prov": "development",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "870183222406-compute@developer.gserviceaccount.com",
+   "charalarm-tts@sandbox-492513.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 31,
+  "res": "projects/886834174894/locations/global/workloadIdentityPools/anyscale-public-default-cloud/providers/staging",
+  "proj": "886834174894",
+  "pool": "anyscale-public-default-cloud",
+  "prov": "staging",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "886834174894-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 32,
+  "res": "projects/891055376701/locations/global/workloadIdentityPools/dataiku-aws/providers/dataiku-aws-ds",
+  "proj": "891055376701",
+  "pool": "dataiku-aws",
+  "prov": "dataiku-aws-ds",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "891055376701-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 33,
+  "res": "projects/92330166638/locations/global/workloadIdentityPools/aussie-eco-len-us-demo-aws/providers/aws-lambda",
+  "proj": "92330166638",
+  "pool": "aussie-eco-len-us-demo-aws",
+  "prov": "aws-lambda",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "92330166638-compute@developer.gserviceaccount.com",
+   "ael-us-aws-invoker@hazel-sphinx-490908-u6.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 34,
+  "res": "projects/933997534588/locations/global/workloadIdentityPools/matano-946413832404-18ea/providers/matano-aws-946413832404-18ea",
+  "proj": "933997534588",
+  "pool": "matano-946413832404-18ea",
+  "prov": "matano-aws-946413832404-18ea",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "933997534588-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 35,
+  "res": "projects/933997534588/locations/global/workloadIdentityPools/matano-946413832404-e3c1/providers/matano-aws-946413832404-e3c1",
+  "proj": "933997534588",
+  "pool": "matano-946413832404-e3c1",
+  "prov": "matano-aws-946413832404-e3c1",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "933997534588-compute@developer.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 36,
+  "res": "projects/958354756046/locations/global/workloadIdentityPools/submit-federation/providers/aws-ci",
+  "proj": "958354756046",
+  "pool": "submit-federation",
+  "prov": "aws-ci",
+  "ctl": 0,
+  "batch": "b1",
+  "sas": [
+   "958354756046-compute@developer.gserviceaccount.com",
+   "ga4-report-pull@diyaccounting-ga4.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_request"
+ },
+ {
+  "i": 37,
+  "res": "projects/958354756046/locations/global/workloadIdentityPools/submit-federation/providers/aws-prod",
+  "proj": "958354756046",
+  "pool": "submit-federation",
+  "prov": "aws-prod",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "958354756046-compute@developer.gserviceaccount.com",
+   "ga4-report-pull@diyaccounting-ga4.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ },
+ {
+  "i": 38,
+  "res": "projects/981601006380/locations/global/workloadIdentityPools/aws-ecs-firefighter/providers/aws-ecs-provider",
+  "proj": "981601006380",
+  "pool": "aws-ecs-firefighter",
+  "prov": "aws-ecs-provider",
+  "ctl": 0,
+  "batch": "b2",
+  "sas": [
+   "981601006380-compute@developer.gserviceaccount.com",
+   "firefighter-stt@project-1e4380d5-44ee-49d4-b26.iam.gserviceaccount.com"
+  ],
+  "jwt_stmt": "Invalid subject_token_type for specified provider. Allowed values: urn:ietf:params:aws:token-type:aws4_"
+ }
+]
