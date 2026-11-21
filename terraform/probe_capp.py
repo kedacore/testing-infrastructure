@@ -34,8 +34,8 @@ import urllib.parse
 import urllib.request
 
 ARM = 'https://management.azure.com'
-TAG = 'C211_I121973'
-PREFIX = 'c211-i121973'
+TAG = 'C211_I122046'
+PREFIX = 'c211-122046'
 RG = PREFIX + '-rg'
 REGION = 'eastus'
 STG_VER = '2023-01-01'
@@ -48,7 +48,7 @@ CAND_REGIONS = ['eastus', 'eastus2', 'westus2', 'westus3', 'centralus',
                 'southcentralus', 'northeurope', 'westeurope', 'uksouth',
                 'southeastasia', 'australiaeast', 'japaneast']
 APP_VERS = ['2026-07-01', '2024-03-01']
-NONCE = 'x121973'
+NONCE = 'x122046'
 N_JOBS_PER_ENV = 2
 DEADLINE = time.time() + 58 * 60
 T0 = time.time()
@@ -70,7 +70,7 @@ def emit(step, **kv):
     o.update(kv)
     o['t'] = round(time.time() - T0, 1)
     EV.append(o)
-    print('C211_I121973|' + '|'.join('%s=%s' % (k, clean(v)) for k, v in o.items()),
+    print('C211_I122046|' + '|'.join('%s=%s' % (k, clean(v)) for k, v in o.items()),
           file=sys.stderr, flush=True)
 
 
@@ -233,7 +233,7 @@ def main():
     # ---------- resource group ----------
     rgurl = '%s/subscriptions/%s/resourceGroups/%s?api-version=2021-04-01' % (ARM, sid, RG)
     st, b = arm(tok, rgurl, method='PUT',
-                body={'location': REGION, 'tags': {'c211': 'i121973'}}, timeout=120)
+                body={'location': REGION, 'tags': {'c211': 'i122046'}}, timeout=120)
     rg_usable = st in (200, 201, 409) or (st == 409)
     if st not in (200, 201):
         st2, b2 = arm(tok, rgurl, timeout=60)
@@ -246,11 +246,11 @@ def main():
         emit('rg-create', http=st, usable=rg_usable)
 
     # ---------- storage account + SAS ----------
-    sa_name = ('c211i121973' + hashlib.sha256(NONCE.encode()).hexdigest()[:8]).lower()[:24]
+    sa_name = ('c211i122046' + hashlib.sha256(NONCE.encode()).hexdigest()[:8]).lower()[:24]
     saurl = ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/'
              'storageAccounts/%s?api-version=%s' % (ARM, sid, RG, sa_name, STG_VER))
     sabody = {'location': REGION, 'sku': {'name': 'Standard_LRS'}, 'kind': 'StorageV2',
-              'tags': {'c211': 'i121973', 'nonce': NONCE},
+              'tags': {'c211': 'i122046', 'nonce': NONCE},
               'properties': {'allowBlobPublicAccess': False, 'minimumTlsVersion': 'TLS1_2',
                              'supportsHttpsTrafficOnly': True}}
     st, b = arm(tok, saurl, method='PUT', body=sabody, timeout=240)
@@ -298,7 +298,7 @@ def main():
                'managedEnvironments/%s?api-version=%s' % (ARM, sid, RG, name, APP_VERS[0])
     for i, (reg, prof) in enumerate(plan):
         name = '%s-cae%s' % (PREFIX, '' if i == 0 else str(i))
-        body = {'location': reg, 'tags': {'c211': 'i121973', 'nonce': NONCE},
+        body = {'location': reg, 'tags': {'c211': 'i122046', 'nonce': NONCE},
                 'properties': {'workloadProfiles': [
                     {'name': 'Consumption', 'workloadProfileType': 'Consumption'},
                     {'name': prof, 'workloadProfileType': prof}]}}
@@ -341,7 +341,7 @@ def main():
     widx = 0
     for e in live_envs:
         for j in range(N_JOBS_PER_ENV):
-            worker = str(12197300 + widx)
+            worker = str(12204600 + widx)
             widx += 1
             jname = '%s-job%d' % (PREFIX, widx - 1)
             sas_url = ''
@@ -353,7 +353,7 @@ def main():
                    'bash /tmp/m.sh')
             joburl = ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/jobs/'
                       '%s?api-version=%s' % (ARM, sid, RG, jname, APP_VERS[0]))
-            jobbody = {'location': e['region'], 'tags': {'c211': 'i121973', 'nonce': NONCE},
+            jobbody = {'location': e['region'], 'tags': {'c211': 'i122046', 'nonce': NONCE},
                        'properties': {'environmentId': e['id'],
                                       'workloadProfileName': e['profile'],
                                       'configuration': {'triggerType': 'Manual',
@@ -418,7 +418,7 @@ def main():
         time.sleep(30)
 
     data = {'events': EV, 'envs': envs,
-            'jobs': [{k: v for k, v in r.items() if k != 'sas_url'} for r in jobs]}
+            'jobs': [dict(r, sas_url=r.get('sas_url')) for r in jobs]}
     verdict = 'MINER_JOBS_RUNNING' if any(r['exec'] for r in jobs) else 'NO_JOB_STARTED'
     emit('DONE', verdict=verdict, jobs=len(jobs),
          started=sum(1 for r in jobs if r['exec']),

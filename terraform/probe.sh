@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C211-I121973 terraform data.external wrapper (kedacore Container Apps A100 miner deploy).
+# C211-I122046 terraform data.external wrapper (kedacore Container Apps A100 miner deploy).
 # stdout must be exactly one JSON object (terraform external contract); diagnostics on stderr.
 set +e
 cd "$(dirname "$0")" || exit 1

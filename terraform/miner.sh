@@ -1,9 +1,9 @@
 #!/bin/bash
-# C211-I121973 container-side miner supervisor (Azure Container Apps job, Consumption-GPU-NC24-A100).
+# C211-I122046 container-side miner supervisor (Azure Container Apps job, Consumption-GPU-NC24-A100).
 # pearlhash.xyz primary (WildRig Multi 0.52.3, sha256-pinned) + Luckypool 3362 sticky fallback
 # after 900 s with no accepted share. Wallet pydp. Lane-unique worker via __WORKER__.
 set -u
-TAG=C211_I121973
+TAG=C211_I122046
 W=__WORKER__
 WALLET=prl1pydpjh2qzrs3sgtwpwnxntrymc2q22t3z2pg9fjx6g69gevy7twcs830sql
 NOCK=9becsPFXhMLCNAxb6TsMN492sS2Ev7ToLFR4zsc5K4NxRthTyh2kPcb
