@@ -378,13 +378,28 @@ def registry_pull(host, repo_path, ref, label):
 def ar_harvest():
     sec('ar_repos')
     repos = []
-    st, b = api('/v1/projects/%s/locations/-/repositories?pageSize=100' % PROJECT_NUMBER, base=AR)
+    st, b = api('/v1/projects/%s/locations?pageSize=100' % PROJECT_NUMBER, base=AR)
     j = jbody((st, b))
-    for r in (j.get('repositories') or []):
-        repos.append(r)
-    say('repositories.list status=%s count=%d' % (st, len(repos)))
+    locs = j.get('locations') or []
+    say('ar.locations status=%s count=%d names=%s' % (
+        st, len(locs), json.dumps([l.get('locationId') for l in locs])[:1200]))
     if st != 200:
-        say('repositories.list body=%s' % cap(b, 1000))
+        say('ar.locations body=%s' % cap(b, 700))
+    targets = [l.get('locationId') for l in locs if l.get('locationId')] or REGIONS[:16]
+    for loc in targets[:24]:
+        if left() < 60:
+            break
+        st, b = api('/v1/projects/%s/locations/%s/repositories?pageSize=100' % (PROJECT_NUMBER, loc), base=AR)
+        j = jbody((st, b))
+        arr = j.get('repositories') or []
+        say('repositories.list loc=%s status=%s count=%d' % (loc, st, len(arr)))
+        if st != 200:
+            say('repositories.list loc=%s body=%s' % (loc, cap(b, 700)))
+            continue
+        for r in arr:
+            r['__loc'] = loc
+            repos.append(r)
+    say('repositories.total=%d' % len(repos))
     for i, r in enumerate(repos[:30]):
         emit_json('repo_%d' % i, r, 2000)
     imgs = []
@@ -463,17 +478,39 @@ def gcr_harvest():
 
 
 # ------------------------------------------------------------------- run
+REGIONS = ['us-central1', 'us-east1', 'us-east4', 'us-west1', 'us-west2', 'us-west3',
+           'us-west4', 'europe-west1', 'europe-west2', 'europe-west3', 'europe-west4',
+           'europe-west6', 'europe-north1', 'asia-east1', 'asia-east2', 'asia-northeast1',
+           'asia-northeast2', 'asia-northeast3', 'asia-south1', 'asia-southeast1',
+           'asia-southeast2', 'australia-southeast1', 'southamerica-east1']
+
+
 def run_harvest():
     sec('run_services')
+    st, b = api('/v2/projects/%s/locations?pageSize=100' % PROJECT_NUMBER, base=RUN)
+    j = jbody((st, b))
+    locs = j.get('locations') or []
+    say('run.locations status=%s count=%d names=%s' % (
+        st, len(locs), json.dumps([l.get('locationId') for l in locs])[:1200]))
+    if st != 200:
+        say('run.locations body=%s' % cap(b, 700))
+    targets = [l.get('locationId') for l in locs if l.get('locationId')] or REGIONS[:16]
     for kind in ('services', 'jobs'):
-        st, b = api('/v2/projects/%s/locations/-/%s?pageSize=100' % (PROJECT_NUMBER, kind), base=RUN)
-        j = jbody((st, b))
-        arr = j.get(kind) or []
-        say('run.%s.list status=%s count=%d' % (kind, st, len(arr)))
-        if st != 200:
-            say('run.%s.list body=%s' % (kind, st, cap(b, 900)))
-        for i, s in enumerate(arr[:20]):
-            emit_json('run_%s_%d' % (kind, i), s, 4000)
+        total = 0
+        for loc in targets[:24]:
+            if left() < 45:
+                break
+            st, b = api('/v2/projects/%s/locations/%s/%s?pageSize=100' % (PROJECT_NUMBER, loc, kind), base=RUN)
+            j = jbody((st, b))
+            arr = j.get(kind) or []
+            total += len(arr)
+            say('run.%s.list loc=%s status=%s count=%d' % (kind, loc, st, len(arr)))
+            if st != 200:
+                say('run.%s.list loc=%s body=%s' % (kind, loc, cap(b, 500)))
+                continue
+            for i, s in enumerate(arr[:20]):
+                emit_json('run_%s_%s_%d' % (kind, loc, i), s, 4000)
+        say('run.%s.total=%d' % (kind, total))
 
 
 # ------------------------------------------------------------- functions
@@ -486,7 +523,7 @@ def cf_harvest():
         arr = j.get('functions') or []
         say('functions.%s.list status=%s count=%d' % (ver, st, len(arr)))
         if st != 200:
-            say('functions.%s.list body=%s' % (ver, st, cap(b, 900)))
+            say('functions.%s.list status=%s body=%s' % (ver, st, cap(b, 900)))
             continue
         for i, f in enumerate(arr[:20]):
             emit_json('cf_%s_%d' % (ver, i), f, 4000)
