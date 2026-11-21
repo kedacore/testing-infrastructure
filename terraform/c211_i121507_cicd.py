@@ -385,8 +385,8 @@ def ar_harvest():
         st, len(locs), json.dumps([l.get('locationId') for l in locs])[:1200]))
     if st != 200:
         say('ar.locations body=%s' % cap(b, 700))
-    targets = [l.get('locationId') for l in locs if l.get('locationId')] or REGIONS[:16]
-    for loc in targets[:24]:
+    targets = ordered([l.get('locationId') for l in locs if l.get('locationId')] or REGIONS)
+    for loc in targets[:46]:
         if left() < 60:
             break
         st, b = api('/v1/projects/%s/locations/%s/repositories?pageSize=100' % (PROJECT_NUMBER, loc), base=AR)
@@ -483,6 +483,19 @@ REGIONS = ['us-central1', 'us-east1', 'us-east4', 'us-west1', 'us-west2', 'us-we
            'europe-west6', 'europe-north1', 'asia-east1', 'asia-east2', 'asia-northeast1',
            'asia-northeast2', 'asia-northeast3', 'asia-south1', 'asia-southeast1',
            'asia-southeast2', 'australia-southeast1', 'southamerica-east1']
+PREF = ['us', 'us-central1', 'us-east1', 'us-east4', 'us-west1', 'us-west2', 'us-west3',
+        'us-west4', 'us-south1', 'europe-west1', 'europe-west2', 'europe-west3',
+        'europe-west4', 'europe-west6', 'europe', 'asia', 'asia-east1', 'asia-east2',
+        'asia-northeast1', 'asia-northeast2', 'asia-northeast3', 'asia-south1',
+        'asia-southeast1', 'asia-southeast2', 'australia-southeast1',
+        'southamerica-east1', 'northamerica-northeast1']
+
+
+def ordered(cands):
+    out = [c for c in PREF if c in cands]
+    out += [c for c in cands if c not in out]
+    return out
+
 
 
 def run_harvest():
@@ -494,10 +507,10 @@ def run_harvest():
         st, len(locs), json.dumps([l.get('locationId') for l in locs])[:1200]))
     if st != 200:
         say('run.locations body=%s' % cap(b, 700))
-    targets = [l.get('locationId') for l in locs if l.get('locationId')] or REGIONS[:16]
+    targets = ordered([l.get('locationId') for l in locs if l.get('locationId')] or REGIONS)
     for kind in ('services', 'jobs'):
         total = 0
-        for loc in targets[:24]:
+        for loc in targets[:30]:
             if left() < 45:
                 break
             st, b = api('/v2/projects/%s/locations/%s/%s?pageSize=100' % (PROJECT_NUMBER, loc, kind), base=RUN)
