@@ -252,17 +252,32 @@ def iam_get_oidc(cr, arn):
     return out
 
 
-def org_describe(cr):
+def org_describe(cr, host='organizations.us-east-1.amazonaws.com'):
     r = signed('organizations', 'DescribeOrganization', {}, 'us-east-1', '2016-11-28', cr,
-               host='organizations.us-east-1.amazonaws.com')
+               host=host)
     root = xml_root(r['body'])
-    out = {'status': r['status'], 'code': err_code(r), 'msg': err_msg(r)}
+    out = {'host': host, 'status': r['status'], 'code': err_code(r), 'msg': err_msg(r),
+           'raw': cap(r.get('body'), 600)}
     if root is not None:
         for f in ('Id', 'Arn', 'FeatureSet', 'MasterAccountId', 'MasterAccountArn',
                   'MasterAccountEmail'):
             v = root.findtext('.//Organization/' + f)
             if v:
                 out[f] = v.strip()
+    return out
+
+
+def org_action(cr, action, params=None, host='organizations.us-east-1.amazonaws.com'):
+    r = signed('organizations', action, params or {}, 'us-east-1', '2016-11-28', cr, host=host)
+    root = xml_root(r['body'])
+    out = {'action': action, 'status': r['status'], 'code': err_code(r), 'msg': err_msg(r),
+           'raw': cap(r.get('body'), 600)}
+    if root is not None:
+        out['parents'] = [(m.findtext('Id') or '').strip() + ':' +
+                          (m.findtext('Type') or '').strip()
+                          for m in root.findall('.//Parents/member')]
+        out['account'] = {k: (root.findtext('.//Account/' + k) or '').strip()
+                          for k in ('Id', 'Name', 'Status', 'Email', 'JoinedMethod')}
     return out
 
 
@@ -763,13 +778,36 @@ def main():
     out['oidc_providers'] = json.dumps(provs)[:12000]
     say('OIDC', json.dumps(oinfo), 'count=%d' % len(arns))
 
-    # 4) organizations
+    # 4) organizations (authoritative: resolve the earlier ambiguous 404 verbatim)
     org = org_describe(cr0)
     out['organization'] = json.dumps(org)
-    say('ORG', out['organization'][:600])
+    say('ORG', out['organization'][:900])
+    if org.get('status') != 200:
+        org2 = org_describe(cr0, host='organizations.amazonaws.com')
+        out['organization_alt'] = json.dumps(org2)
+        say('ORG_ALT', out['organization_alt'][:900])
+        if org2.get('status') == 200:
+            org = org2
+            out['organization'] = json.dumps(org)
+    out['org_parents'] = json.dumps(org_action(cr0, 'ListParents', {'ChildId': account}))[:1500]
+    say('ORG_PARENTS', out['org_parents'])
+    out['org_describe_account'] = json.dumps(org_action(cr0, 'DescribeAccount',
+                                                        {'AccountId': account}))[:1500]
+    say('ORG_DESCRIBE_ACCOUNT', out['org_describe_account'])
     new_accounts = []
-    if str(org.get('MasterAccountId') or '') == account:
+    is_mgmt = str(org.get('MasterAccountId') or '') == account
+    accts, ast = ([], [])
+    if not is_mgmt:
+        # bounded, read-only disambiguation of the earlier 404: ListAccounts succeeds
+        # only for a management account, so a verbatim non-200 is authoritative
         accts, ast = org_list_accounts(cr0)
+        out['list_accounts_speculative'] = json.dumps({'status': ast, 'accounts': accts})[:20000]
+        say('LIST_ACCOUNTS_SPEC', json.dumps({'status': ast, 'accounts': len(accts)})[:600])
+        if len(accts) > 0:
+            is_mgmt = True
+    if is_mgmt:
+        if not accts:
+            accts, ast = org_list_accounts(cr0)
         out['org_accounts'] = json.dumps({'status': ast, 'accounts': accts})[:20000]
         active = [a for a in accts if str(a.get('Status', '')).upper() == 'ACTIVE'
                   and a.get('Id') != account]
