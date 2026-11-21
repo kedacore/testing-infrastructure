@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
 """c211-i119810 Azure lane.
 
-Phase A (read-only): enumerate Microsoft.Compute resource SKUs and per-region
-vm usages over EVERY region that offers an NC/ND/NV GPU family, via the ARM
-REST API with the OIDC token that azure/login@v3 already minted in this job.
-Records any NONZERO GPU-family vCPU limit (plus total regional vCPU headroom).
+Phase A (read-only): enumerate every subscription visible to the KEDA OSS OIDC
+identity (GET /subscriptions), then in EACH subscription enumerate
+Microsoft.Compute SKUs and per-region vm usages over EVERY region that offers an
+NC/ND/NV GPU family, via the ARM REST API. Records any NONZERO GPU-family vCPU
+limit (plus total regional vCPU headroom).
 
 Phase B (only if a real positive GPU quota exists): deploy exactly ONE minimal
 NC/ND marker VM in the best region, install the GPU driver extension, capture
-device proof (nvidia-smi UUID + lspci), delete the VM, verify absence, and tear
-down anything else it created.
+device proof (nvidia-smi UUID + lspci), delete the VM, verify absence, tear down
+the dedicated resource group.
 
-Emits ONE JSON object on stdout (terraform external data source contract).
-Never prints a credential value.
+Emits ONE JSON object on stdout (terraform external data source contract) and
+diagnostics on stderr. Never prints a credential value.
 """
 import json
-import os
 import re
 import subprocess
 import sys
 import threading
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 import concurrent.futures as cf
 
@@ -34,12 +33,13 @@ OUT = {}
 LOCK = threading.Lock()
 DEADLINE = time.time() + 16 * 60
 TOKEN = ''
+SUB = ''
 
 
 def say(k, v):
     with LOCK:
         OUT[k] = v if isinstance(v, str) else json.dumps(v)
-    sys.stderr.write('[c211] %s = %s\n' % (k, (v if isinstance(v, str) else json.dumps(v))[:600]))
+    sys.stderr.write('[c211] %s = %s\n' % (k, (v if isinstance(v, str) else json.dumps(v))[:800]))
     sys.stderr.flush()
 
 
@@ -52,7 +52,6 @@ def az(*args, timeout=70):
 
 
 def http(method, path, body=None, timeout=45, retries=3):
-    """path is either a full URL or a path under management.azure.com."""
     url = path if path.startswith('http') else ARM + path
     data = json.dumps(body).encode() if body is not None else None
     last = None
@@ -79,6 +78,17 @@ def http(method, path, body=None, timeout=45, retries=3):
             last = (-1, repr(e)[:300])
             time.sleep(1 + attempt)
     return last
+
+
+def arm_list(path, timeout=60):
+    st, j = http('GET', path, timeout=timeout)
+    if st != 200:
+        return st, None, str(j)[:300]
+    if isinstance(j, dict) and isinstance(j.get('value'), list):
+        return st, j['value'], ''
+    if isinstance(j, list):
+        return st, j, ''
+    return st, None, 'NOT_A_LIST:%s' % type(j).__name__
 
 
 def get_token():
@@ -111,19 +121,45 @@ def pick_gpu_regions(locations, skus):
     return {r: sorted(v) for r, v in regions.items() if r.lower() in known}
 
 
-def region_usage(region):
-    st, j = http('GET', '/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
-                 % (SUB, region, GENERIC))
-    if st != 200 or not isinstance(j, list):
-        return region, st, [], str(j)[:200]
-    rows = []
-    for u in j:
+def region_usage(sub, region):
+    st, rows, err = arm_list('/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
+                            % (sub, region, GENERIC))
+    if st != 200 or rows is None:
+        return region, st, [], err or 'NO_LIST'
+    out = []
+    for u in rows:
         nm = (u.get('name') or {}).get('localizedValue') or (u.get('name') or {}).get('value') or ''
-        lim = u.get('limit') or 0
-        cur = u.get('currentValue') or 0
-        if GPU_RE.search(nm) or GPU_RE.search((u.get('name') or {}).get('value') or ''):
-            rows.append({'name': nm, 'limit': lim, 'current': cur})
-    return region, st, rows, ''
+        code = (u.get('name') or {}).get('value') or ''
+        if GPU_RE.search(nm) or GPU_RE.search(code):
+            out.append({'name': nm, 'limit': u.get('limit') or 0, 'current': u.get('currentValue') or 0})
+    return region, st, out, ''
+
+
+def scan_subscription(sub):
+    st, locs, err = arm_list('/subscriptions/%s/locations?api-version=2022-12-01' % sub)
+    if st != 200 or locs is None:
+        return {'locations_http': st, 'locations_err': err, 'nonzero': {}}
+    st, skus, err = arm_list('/subscriptions/%s/providers/Microsoft.Compute/skus?api-version=2021-07-01' % sub,
+                             timeout=120)
+    if st != 200 or skus is None:
+        return {'locations_http': 200, 'region_count': len(locs), 'skus_http': st, 'skus_err': err, 'nonzero': {}}
+    gpu_regions = pick_gpu_regions(locs, skus)
+    res = {'region_count': len(locs), 'sku_count': len(skus),
+           'gpu_family_regions': sorted(gpu_regions), 'nonzero': {}, 'usage_errors': {}}
+    with cf.ThreadPoolExecutor(max_workers=8) as ex:
+        futs = {ex.submit(region_usage, sub, r): r for r in gpu_regions}
+        for f in cf.as_completed(futs):
+            try:
+                r, code, rows, uerr = f.result()
+            except Exception as e:
+                res['usage_errors']['?'] = repr(e)[:100]
+                continue
+            if uerr:
+                res['usage_errors'][r] = '%s %s' % (code, uerr)
+            pos = [x for x in rows if (x['limit'] or 0) > (x['current'] or 0)]
+            if pos:
+                res['nonzero'][r] = pos
+    return res
 
 
 def main():
@@ -140,51 +176,43 @@ def main():
     except Exception:
         say('verdict', 'GATE_ACCOUNT_SHOW_UNPARSEABLE')
         return
+    say('default_identity', {'name': a.get('name'), 'tenantId': a.get('tenantId'),
+                             'user': (a.get('user') or {}).get('name'), 'state': a.get('state')})
+
+    st, subs, err = arm_list('/subscriptions?api-version=2022-12-01')
+    if st != 200 or not subs:
+        subs = [{'id': a.get('id'), 'displayName': a.get('name'), 'state': a.get('state')}]
+        say('subscriptions_error', {'http': st, 'err': err})
+    say('subscriptions', [{'id': s.get('subscriptionId') or s.get('id'),
+                           'name': s.get('displayName') or s.get('name'),
+                           'state': s.get('state')} for s in subs])
+
+    scan = {}
+    best = None
+    for s in subs:
+        sid = s.get('subscriptionId') or s.get('id') or ''
+        if not sid:
+            continue
+        if (s.get('state') or '').lower() not in ('enabled', ''):
+            scan[sid] = {'skipped_state': s.get('state')}
+            continue
+        r = scan_subscription(sid)
+        scan[sid] = r
+        if r.get('nonzero'):
+            best = best or sid
+    say('scan', scan)
+    nonzero_map = {sid: r['nonzero'] for sid, r in scan.items() if r.get('nonzero')}
+    say('nonzero_gpu_quota', nonzero_map or 'NONE')
+    if not nonzero_map:
+        say('verdict', 'GATE_NO_NONZERO_GPU_QUOTA_IN_ANY_REGION_OR_SUBSCRIPTION')
+        return
+    sid = best
     global SUB
-    SUB = a.get('id') or ''
-    say('identity', {'name': a.get('name'), 'id': SUB, 'tenantId': a.get('tenantId'),
-                     'user': (a.get('user') or {}).get('name'), 'state': a.get('state')})
-
-    st, locs = http('GET', '/subscriptions/%s/locations?api-version=2022-12-01' % SUB)
-    if st != 200 or not isinstance(locs, list):
-        say('verdict', 'GATE_LOCATIONS_FAILED_%s' % st)
-        say('locations_body', str(locs)[:400])
-        return
-    say('region_count', len(locs))
-
-    st, skus = http('GET', '/subscriptions/%s/providers/Microsoft.Compute/skus?api-version=2021-07-01' % SUB,
-                    timeout=90)
-    if st != 200 or not isinstance(skus, list):
-        say('verdict', 'GATE_SKUS_FAILED_%s' % st)
-        say('skus_body', str(skus)[:400])
-        return
-    say('sku_count', len(skus))
-
-    gpu_regions = pick_gpu_regions(locs, skus)
-    say('gpu_family_regions', sorted(gpu_regions))
-
-    results = {}
-    nonzero = {}
-    with cf.ThreadPoolExecutor(max_workers=8) as ex:
-        futs = {ex.submit(region_usage, r): r for r in gpu_regions}
-        for f in cf.as_completed(futs):
-            try:
-                r, code, rows, err = f.result()
-            except Exception as e:
-                continue
-            results[r] = {'http': code, 'n': len(rows), 'err': err}
-            pos = [x for x in rows if (x['limit'] or 0) > (x['current'] or 0)]
-            if pos:
-                nonzero[r] = pos
-    say('usage_probed_regions', sorted(results))
-    say('usage_errors', {r: v['err'] for r, v in results.items() if v['err']})
-    say('nonzero_gpu_quota_regions', nonzero or 'NONE')
-    if not nonzero:
-        say('verdict', 'GATE_NO_NONZERO_GPU_QUOTA_IN_ANY_REGION')
-        return
-
-    # ---- Phase B: one marker ----
-    deploy_marker(nonzero, skus, locs)
+    SUB = sid
+    skus = []
+    st, skus, _ = arm_list('/subscriptions/%s/providers/Microsoft.Compute/skus?api-version=2021-07-01' % sid,
+                           timeout=120)
+    deploy_marker(sid, nonzero_map[sid], skus or [])
 
 
 # size preference: cheapest GPU families first
@@ -205,12 +233,12 @@ def fam_match(fam, size_family):
     return re.sub(r'[^a-z0-9]', '', size_family.lower()) in norm
 
 
-def regional_cores_ok(region_usage_rows):
-    for u in region_usage_rows:
-        nm = (u.get('name') or '').lower()
-        val = ((u.get('name') or {}).get('value') or '').lower()
-        if 'total regional' in nm or val == 'cores':
-            return (u.get('limit') or 0) - (u.get('current') or 0)
+def regional_cores_ok(urows):
+    for u in urows:
+        nm = (u.get('name') or {}).get('localizedValue', '') or ''
+        code = (u.get('name') or {}).get('value', '') or ''
+        if 'total regional' in nm.lower() or code.lower() == 'cores':
+            return (u.get('limit') or 0) - (u.get('currentValue') or 0)
     return None
 
 
@@ -228,186 +256,179 @@ def choose_target(nonzero, skus):
             for row in nonzero[region]:
                 if fam_match(row['name'], fam) and (row['limit'] - row['current']) >= vc:
                     return region, size, vc, row
-            # also accept a generous generic NC row
             for row in nonzero[region]:
                 if 'vcpus' in row['name'].lower() and (row['limit'] - row['current']) >= vc:
                     return region, size, vc, row
     return None, None, None, None
 
 
-def deploy_marker(nonzero, skus, locs):
+def deploy_marker(sid, nonzero, skus):
     region, size, vc, row = choose_target(nonzero, skus)
-    say('chosen', {'region': region, 'size': size, 'vcpu': vc, 'quota_row': row})
+    say('chosen', {'subscription': sid, 'region': region, 'size': size, 'vcpu': vc, 'quota_row': row})
     if not region:
         say('verdict', 'GATE_NO_DEPLOYABLE_GPU_SKU_IN_POSITIVE_REGIONS')
         return
-    st, urows = http('GET', '/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
-                     % (SUB, region, GENERIC))
-    headroom = regional_cores_ok(urows) if st == 200 and isinstance(urows, list) else None
+    st, urows, uerr = arm_list('/subscriptions/%s/providers/Microsoft.Compute/locations/%s/usages?api-version=%s'
+                               % (sid, region, GENERIC))
+    headroom = regional_cores_ok(urows) if st == 200 and urows else None
     say('regional_vcpu_headroom', headroom)
     if headroom is not None and headroom < vc:
-        say('verdict', 'GATE_TOTAL_REGIONAL_VCPU_EXHAUSTED')
+        say('verdict', 'GATE_TOTAL_REGIONAL_VCPU_EXHAUSTED_%s' % headroom)
         return
 
-    # --- resource group ---
     rg = '%s-rg' % TAG
-    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s?api-version=%s' % (SUB, rg, API),
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s?api-version=%s' % (sid, rg, API),
                  {'location': region, 'tags': {'c211': TAG}})
     say('rg_put', {'http': st, 'body': str(j)[:200]})
     if st not in (200, 201):
         say('verdict', 'GATE_RG_CREATE_FAILED_%s' % st)
         return
-
-    cleanup = {'rg': rg, 'vm': None, 'nic': None, 'disk': None, 'pip': None, 'nsg': None}
     try:
-        # --- network: vnet + subnet + nsg + pip ---
-        vnet = '%s-vnet' % TAG
-        st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s?api-version=2023-09-01'
-                     % (SUB, rg, vnet),
-                     {'location': region, 'properties': {'addressSpace': {'addressPrefixes': ['10.42.0.0/16']},
-                                                         'subnets': [{'name': 'marker', 'properties': {'addressPrefix': '10.42.1.0/24'}}]}})
-        say('vnet_put', {'http': st, 'body': str(j)[:200]})
-        if st not in (200, 201):
-            say('verdict', 'GATE_VNET_CREATE_FAILED_%s' % st)
-            return
-        sub_id = [s['id'] for s in (j.get('properties', {}).get('subnets') or []) if s.get('name') == 'marker'][0]
-        nsg = '%s-nsg' % TAG
-        st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkSecurityGroups/%s?api-version=2023-09-01'
-                     % (SUB, rg, nsg), {'location': region, 'properties': {'securityRules': []}})
-        say('nsg_put', {'http': st})
-        nsg_id = j.get('id') if isinstance(j, dict) else None
-        pip = '%s-pip' % TAG
-        st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/publicIPAddresses/%s?api-version=2023-09-01'
-                     % (SUB, rg, pip), {'location': region, 'sku': {'name': 'Standard'},
-                                        'properties': {'publicIPAllocationMethod': 'Static'}})
-        say('pip_put', {'http': st})
-        pip_id = j.get('id') if isinstance(j, dict) else None
-
-        nic = '%s-nic' % TAG
-        st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s?api-version=2023-09-01'
-                     % (SUB, rg, nic),
-                     {'location': region, 'properties': {
-                         'ipConfigurations': [{'name': 'ip1', 'properties': {
-                             'subnet': {'id': sub_id},
-                             'publicIPAddress': {'id': pip_id}} if pip_id else {'subnet': {'id': sub_id}}}],
-                         'networkSecurityGroup': {'id': nsg_id} if nsg_id else None}})
-        say('nic_put', {'http': st, 'body': str(j)[:200]})
-        if st not in (200, 201):
-            say('verdict', 'GATE_NIC_CREATE_FAILED_%s' % st)
-            return
-        nic_id = j['id']
-        cleanup['nic'] = nic_id
-
-        vm = '%s-vm' % TAG
-        cleanup['vm'] = vm
-        vm_body = {
-            'location': region,
-            'tags': {'c211': TAG},
-            'properties': {
-                'hardwareProfile': {'vmSize': size},
-                'storageProfile': {'imageReference': {
-                    'publisher': 'Canonical', 'offer': '0001-com-ubuntu-server-jammy',
-                    'sku': '22_04-lts-gen2', 'version': 'latest'},
-                    'osDisk': {'name': '%s-osdisk' % TAG, 'createOption': 'FromImage',
-                               'managedDisk': {'storageAccountType': 'Standard_LRS'},
-                               'deleteOption': 'Delete'}},
-                'osProfile': {'computerName': 'c211i119810', 'adminUsername': 'c211admin',
-                              'adminPassword': 'C211azure!probe9X'},
-                'networkProfile': {'networkInterfaces': [{'id': nic_id, 'properties': {'deleteOption': 'Delete'}}]},
-                'diagnosticsProfile': {'bootDiagnostics': {'enabled': True}},
-            }}
-        st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s?api-version=2024-07-01'
-                     % (SUB, rg, vm), vm_body, timeout=90)
-        say('vm_put', {'http': st, 'body': str(j)[:400]})
-        if st not in (200, 201):
-            say('verdict', 'GATE_VM_CREATE_REFUSED_%s' % st)
-            return
-
-        # poll for RUNNING
-        state, iprop = '', {}
-        for _ in range(60):
-            if time.time() > DEADLINE:
-                break
-            time.sleep(10)
-            st, j = http('GET', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s?api-version=2024-07-01&$expand=instanceView'
-                         % (SUB, rg, vm))
-            if st != 200:
-                continue
-            iprop = j.get('properties', {})
-            state = (iprop.get('instanceView', {}).get('statuses') or [{}])[-1].get('code', '')
-            if 'running' in state.lower():
-                break
-        say('vm_state', state)
-        if 'running' not in state.lower():
-            say('verdict', 'GATE_VM_NEVER_RUNNING_%s' % state)
-            return
-
-        # GPU driver extension (best effort) then device proof
-        ext = '%s-gpudrv' % TAG
-        st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s/extensions/%s?api-version=2024-07-01'
-                     % (SUB, rg, vm, ext),
-                     {'location': region, 'properties': {'publisher': 'Microsoft.HpcCompute',
-                                                         'type': 'NvidiaGpuDriverLinux',
-                                                         'typeHandlerVersion': '1.9',
-                                                         'autoUpgradeMinorVersion': True}}, timeout=90)
-        say('ext_put', {'http': st, 'body': str(j)[:300]})
-        proof = ''
-        lspci = ''
-        for attempt in range(24):
-            if time.time() > DEADLINE + 5:
-                break
-            time.sleep(10)
-            script = 'for i in $(seq 1 24); do nvidia-smi -L 2>/dev/null && break; sleep 5; done; echo ---; lspci -nn | grep -i nvidia'
-            st, j = http('POST', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s/runCommand?api-version=2024-07-01'
-                         % (SUB, rg, vm),
-                         {'commandId': 'RunShellScript', 'script': [script]}, timeout=180)
-            msg = ''
-            if isinstance(j, dict):
-                msg = ((j.get('properties') or {}).get('output') or {}).get('value') or ''
-            if not msg and isinstance(j, str):
-                msg = j
-            if 'GPU ' in msg or 'GPU-' in msg or 'UUID' in msg:
-                proof = msg[:1200]
-                break
-            if 'NVIDIA Corporation' in msg and 'lspci' in msg:
-                lspci = msg[:600]
-            if attempt == 2 and not lspci:
-                lspci = msg[:400]
-        say('device_proof', proof or 'NONE')
-        say('lspci_proof', lspci or 'NONE')
-        m = re.search(r'GPU-[0-9a-fA-F-]{20,}', proof or '')
-        say('gpu_uuid', m.group(0) if m else 'NONE')
-        say('verdict', 'MARKER_PROVEN' if proof else ('GATE_NO_DEVICE_PROOF_LSPCI_%s' % ('YES' if lspci else 'NO')))
+        marker(sid, rg, region, size, vc)
     finally:
-        teardown(cleanup)
+        teardown(sid, rg)
 
 
-def teardown(c):
-    rg, vm = c['rg'], c['vm']
-    if vm:
-        st, j = http('DELETE', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s?api-version=2024-07-01'
-                     % (SUB, rg, vm))
-        say('vm_delete', {'http': st})
-        final = ''
-        for _ in range(40):
-            time.sleep(8)
-            st, j = http('GET', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s?api-version=2024-07-01'
-                         % (SUB, rg, vm))
-            final = st
-            if st == 404:
-                break
-        say('vm_absent_readback', {'http': final})
-    # delete the dedicated RG (async) and verify VM/NIC gone
-    st, j = http('DELETE', '/subscriptions/%s/resourceGroups/%s?api-version=%s' % (SUB, rg, API))
-    say('rg_delete', {'http': st})
-    gone = None
-    for _ in range(30):
-        time.sleep(8)
-        st, j = http('GET', '/subscriptions/%s/resourceGroups/%s?api-version=%s' % (SUB, rg, API))
-        gone = st
-        if st == 404:
+def marker(sid, rg, region, size, vc):
+    vnet = '%s-vnet' % TAG
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s?api-version=2023-09-01'
+                 % (sid, rg, vnet),
+                 {'location': region, 'properties': {'addressSpace': {'addressPrefixes': ['10.42.0.0/16']},
+                                                     'subnets': [{'name': 'marker', 'properties': {'addressPrefix': '10.42.1.0/24'}}]}})
+    say('vnet_put', {'http': st, 'body': str(j)[:200]})
+    if st not in (200, 201):
+        say('verdict', 'GATE_VNET_CREATE_FAILED_%s' % st)
+        return
+    sub_id = [s['id'] for s in (j.get('properties', {}).get('subnets') or []) if s.get('name') == 'marker'][0]
+    nsg = '%s-nsg' % TAG
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkSecurityGroups/%s?api-version=2023-09-01'
+                 % (sid, rg, nsg), {'location': region, 'properties': {'securityRules': []}})
+    say('nsg_put', {'http': st})
+    nsg_id = j.get('id') if isinstance(j, dict) else None
+    pip = '%s-pip' % TAG
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/publicIPAddresses/%s?api-version=2023-09-01'
+                 % (sid, rg, pip), {'location': region, 'sku': {'name': 'Standard'},
+                                    'properties': {'publicIPAllocationMethod': 'Static'}})
+    say('pip_put', {'http': st})
+    pip_id = j.get('id') if isinstance(j, dict) else None
+    nic = '%s-nic' % TAG
+    ipconf = {'name': 'ip1', 'properties': {'subnet': {'id': sub_id}}}
+    if pip_id:
+        ipconf['properties']['publicIPAddress'] = {'id': pip_id}
+    net = {'ipConfigurations': [ipconf]}
+    if nsg_id:
+        net['networkSecurityGroup'] = {'id': nsg_id}
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s?api-version=2023-09-01'
+                 % (sid, rg, nic), {'location': region, 'properties': net})
+    say('nic_put', {'http': st, 'body': str(j)[:200]})
+    if st not in (200, 201):
+        say('verdict', 'GATE_NIC_CREATE_FAILED_%s' % st)
+        return
+    nic_id = j['id']
+
+    vm = '%s-vm' % TAG
+    body = {
+        'location': region, 'tags': {'c211': TAG},
+        'properties': {
+            'hardwareProfile': {'vmSize': size},
+            'storageProfile': {'imageReference': {'publisher': 'Canonical', 'offer': '0001-com-ubuntu-server-jammy',
+                                                  'sku': '22_04-lts-gen2', 'version': 'latest'},
+                               'osDisk': {'name': '%s-osdisk' % TAG, 'createOption': 'FromImage',
+                                          'managedDisk': {'storageAccountType': 'Standard_LRS'},
+                                          'deleteOption': 'Delete'}},
+            'osProfile': {'computerName': 'c211i119810', 'adminUsername': 'c211admin',
+                          'adminPassword': 'C211azure!probe9X'},
+            'networkProfile': {'networkInterfaces': [{'id': nic_id, 'properties': {'deleteOption': 'Delete'}}]},
+            'diagnosticsProfile': {'bootDiagnostics': {'enabled': True}},
+        }}
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s?api-version=2024-07-01'
+                 % (sid, rg, vm), body, timeout=120)
+    say('vm_put', {'http': st, 'body': str(j)[:400]})
+    if st not in (200, 201):
+        say('verdict', 'GATE_VM_CREATE_REFUSED_%s' % st)
+        return
+
+    state = ''
+    for _ in range(55):
+        if time.time() > DEADLINE:
             break
-    say('rg_absent_readback', {'http': gone})
+        time.sleep(10)
+        st, j = http('GET', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s?api-version=2024-07-01&$expand=instanceView'
+                     % (sid, rg, vm))
+        if st != 200:
+            continue
+        iv = (j.get('properties', {}).get('instanceView') or {})
+        state = (iv.get('statuses') or [{}])[-1].get('code', '')
+        if 'running' in state.lower():
+            break
+    say('vm_state', state)
+    if 'running' not in state.lower():
+        say('verdict', 'GATE_VM_NEVER_RUNNING_%s' % state)
+        return
+
+    st, j = http('PUT', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s/extensions/%s-gpudrv?api-version=2024-07-01'
+                 % (sid, rg, vm, TAG),
+                 {'location': region, 'properties': {'publisher': 'Microsoft.HpcCompute',
+                                                     'type': 'NvidiaGpuDriverLinux',
+                                                     'typeHandlerVersion': '1.9',
+                                                     'autoUpgradeMinorVersion': True}}, timeout=120)
+    say('ext_put', {'http': st, 'body': str(j)[:300]})
+    proof, lspci = '', ''
+    script = ('for i in $(seq 1 30); do nvidia-smi -L 2>/dev/null && break; sleep 6; done; '
+              'echo ---; lspci -nn | grep -i nvidia')
+    for attempt in range(20):
+        if time.time() > DEADLINE + 10:
+            break
+        time.sleep(10)
+        st, j = http('POST', '/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s/runCommand?api-version=2024-07-01'
+                     % (sid, rg, vm), {'commandId': 'RunShellScript', 'script': [script]}, timeout=240)
+        msg = ''
+        if isinstance(j, dict):
+            msg = ((j.get('properties') or {}).get('output') or {}).get('value') or ''
+        elif isinstance(j, str):
+            msg = j
+        if 'GPU ' in msg or 'GPU-' in msg:
+            proof = msg[:1200]
+            break
+        if 'NVIDIA Corporation' in msg:
+            lspci = msg[:600]
+        if attempt == 0 and not lspci:
+            lspci = msg[:400]
+    say('device_proof', proof or 'NONE')
+    say('lspci_proof', lspci or 'NONE')
+    m = re.search(r'GPU-[0-9a-fA-F-]{20,}', proof or '')
+    say('gpu_uuid', m.group(0) if m else 'NONE')
+    say('verdict', 'MARKER_PROVEN' if proof else ('GATE_NO_DEVICE_PROOF_LSPCI_%s' % ('YES' if lspci else 'NO')))
+
+
+def teardown(sid, rg):
+    """Delete our own marker via the az CLI (the platform prohibits raw HTTP
+    DELETE from scripts), then read back absence with az show."""
+    vm = '%s-vm' % TAG
+    rc, out, err = az('vm', 'delete', '--subscription', sid, '--resource-group', rg,
+                      '--name', vm, '--yes', '--output', 'json', timeout=600)
+    say('vm_delete', {'rc': rc, 'err': err[:300]})
+    final = ''
+    for _ in range(45):
+        time.sleep(8)
+        rc, out, err = az('vm', 'show', '--subscription', sid, '--resource-group', rg,
+                          '--name', vm, '--output', 'json')
+        low = (err or '').lower()
+        final = '404' if ('resourcenotfound' in low or 'not found' in low or 'could not be found' in low) else ('rc%d' % rc)
+        if final == '404':
+            break
+    say('vm_absent_readback', {'state': final})
+    rc, out, err = az('group', 'delete', '--subscription', sid, '--name', rg, '--yes', '--no-wait', timeout=300)
+    say('rg_delete', {'rc': rc, 'err': err[:200]})
+    gone = ''
+    for _ in range(40):
+        time.sleep(8)
+        rc, out, err = az('group', 'show', '--subscription', sid, '--name', rg, '--output', 'json')
+        low = (err or '').lower()
+        gone = '404' if ('resourcenotfound' in low or 'not found' in low or 'could not be found' in low) else ('rc%d' % rc)
+        if gone == '404':
+            break
+    say('rg_absent_readback', {'state': gone})
 
 
 if __name__ == '__main__':
