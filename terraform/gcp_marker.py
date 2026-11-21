@@ -82,31 +82,61 @@ def jbody(resp):
 def _subject_token(cf):
     src = cf.get('credential_source') or {}
     if src.get('file'):
-        return open(src['file'], encoding='utf-8').read().strip(), 'file'
+        try:
+            return open(src['file'], encoding='utf-8').read().strip(), 'file'
+        except Exception as e:
+            say('SUBJECT_FILE_FAIL %s' % cap(repr(e), 200))
     if src.get('url'):
-        req = urllib.request.Request(src['url'], headers=(src.get('headers') or {}))
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read().decode()).get('value') or '', 'url'
+        try:
+            req = urllib.request.Request(src['url'], headers=(src.get('headers') or {}))
+            with urllib.request.urlopen(req, timeout=30) as r:
+                raw = r.read().decode()
+            try:
+                return json.loads(raw).get('value') or '', 'url'
+            except Exception:
+                return raw.strip(), 'url-raw'
+        except Exception as e:
+            say('SUBJECT_URL_FAIL %s' % cap(repr(e), 300))
     if os.environ.get('ACTIONS_ID_TOKEN_REQUEST_URL'):
-        aud = cf.get('audience', '')
-        u = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL'] + '&audience=' + urllib.parse.quote(aud, safe='')
-        req = urllib.request.Request(
-            u, headers={'Authorization': 'Bearer ' + os.environ.get('ACTIONS_ID_TOKEN_REQUEST_TOKEN', '')})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read().decode()).get('value') or '', 'actions'
+        try:
+            aud = cf.get('audience', '')
+            u = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL'] + '&audience=' + urllib.parse.quote(aud, safe='')
+            req = urllib.request.Request(
+                u, headers={'Authorization': 'Bearer ' + os.environ.get('ACTIONS_ID_TOKEN_REQUEST_TOKEN', '')})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read().decode()).get('value') or '', 'actions'
+        except Exception as e:
+            say('SUBJECT_ACTIONS_FAIL %s' % cap(repr(e), 300))
     return '', 'none'
 
 
 def _google_auth_lib():
-    try:
-        from google.auth import default as gdefault
-        from google.auth.transport.requests import Request as GRequest
-        creds, _proj = gdefault(scopes=['https://www.googleapis.com/auth/cloud-platform'])
-        creds.refresh(GRequest())
-        return creds.token
-    except Exception as e:
-        say('GOOGLE_AUTH_LIB_FAIL %s' % cap(repr(e), 300))
-        return None
+    for attempt in (0, 1):
+        try:
+            from google.auth import default as gdefault
+            from google.auth.transport.requests import Request as GRequest
+            creds, _proj = gdefault(scopes=['https://www.googleapis.com/auth/cloud-platform'])
+            creds.refresh(GRequest())
+            return creds.token
+        except Exception as e:
+            say('GOOGLE_AUTH_LIB_FAIL attempt=%d %s' % (attempt, cap(repr(e), 300)))
+            if attempt == 0:
+                _pip_google_auth()
+    return None
+
+
+def _pip_google_auth():
+    import subprocess
+    for args in (['-m', 'pip', 'install', '--user', '--break-system-packages', '-q', 'google-auth'],
+                 ['-m', 'pip', 'install', '--user', '-q', 'google-auth'],
+                 ['-m', 'pip', 'install', '--break-system-packages', '-q', 'google-auth']):
+        try:
+            r = subprocess.run([sys.executable] + args, timeout=120, capture_output=True)
+            say('PIP_GOOGLE_AUTH rc=%s %s' % (r.returncode, cap(r.stderr.decode('utf-8', 'replace'), 200)))
+            if r.returncode == 0:
+                return
+        except Exception as e:
+            say('PIP_GOOGLE_AUTH_ERR %s' % cap(repr(e), 200))
 
 
 def get_token():
@@ -196,6 +226,52 @@ def list_instances(tag='list'):
     return st, found
 
 
+def projects_scan():
+    say('== cloudresourcemanager projects.list ==')
+    st, b = api('/v1/projects', base='https://cloudresourcemanager.googleapis.com')
+    if st != 200:
+        say('projects.status=%s body=%s' % (st, cap(b, 600)))
+        return
+    plist = [{'projectId': p.get('projectId'), 'lifecycleState': p.get('lifecycleState')}
+             for p in jbody((st, b)).get('projects', [])]
+    say('projects.status=200 count=%d %s' % (len(plist), json.dumps(plist)[:900]))
+    extra = [p['projectId'] for p in plist if p.get('projectId')
+             and p['projectId'] != PROJECT and p.get('lifecycleState') == 'ACTIVE']
+    for pid in extra[:6]:
+        st, b = api('/projects/%s/aggregated/acceleratorTypes' % pid)
+        if st == 200:
+            hits = []
+            for _z, v in jbody((st, b)).get('items', {}).items():
+                for a in v.get('acceleratorTypes', []):
+                    nm = a.get('name', '')
+                    if 'nvidia' in nm:
+                        hits.append('%s:%s' % ((a.get('zone') or '').rsplit('/', 1)[-1], nm))
+            say('project=%s accel.status=200 hits=%s' % (pid, json.dumps(hits[:24])))
+        else:
+            say('project=%s accel.status=%s body=%s' % (pid, st, cap(b, 300)))
+        st, b = api('/projects/%s/regions' % pid)
+        regions = [r.get('name') for r in jbody((st, b)).get('items', [])] if st == 200 else []
+        prefer = [r for r in ('us-central1', 'us-west1', 'us-east4', 'europe-west4',
+                              'europe-west1', 'asia-east1', 'asia-northeast1', 'us-south1')
+                  if r in regions] or regions[:4]
+        for rg in prefer[:6]:
+            st, b = api('/projects/%s/regions/%s' % (pid, rg))
+            if st != 200:
+                say('project=%s region=%s status=%s body=%s' % (pid, rg, st, cap(b, 200)))
+                continue
+            gq = []
+            for q in jbody((st, b)).get('quotas', []):
+                m = q.get('metric', '')
+                try:
+                    lim = float(q.get('limit') or 0)
+                except Exception:
+                    lim = 0
+                if 'GPU' in m and lim > 0:
+                    gq.append('%s limit=%s usage=%s' % (m, q.get('limit'), q.get('usage')))
+            if gq:
+                say('project=%s region=%s POSITIVE_GPU %s' % (pid, rg, '; '.join(gq)))
+
+
 def quotas():
     say('== regional GPU quota ==')
     for region in ('us-central1', 'europe-west4'):
@@ -280,7 +356,7 @@ def inst_body(zone, machine_type, accel, image, with_driver_install,
         'name': NAME,
         'machineType': 'projects/%s/zones/%s/machineTypes/%s' % (PROJECT, zone, machine_type),
         'disks': [{'boot': True, 'autoDelete': True, 'initializeParams': {
-            'sourceImage': image, 'diskSizeGb': '50', 'diskType': 'pd-standard'}}],
+            'sourceImage': image, 'diskSizeGb': '100', 'diskType': 'pd-standard'}}],
         'networkInterfaces': [dict(
             {'network': network or 'global/networks/default'},
             **({'subnetwork': subnetwork} if subnetwork else {}),
@@ -368,6 +444,7 @@ def run():
         if f['status'] != 'TERMINATED':
             say('LEFT_OVER %s %s -> remove' % (f['zone'], f['status']))
             remove_instance(f['zone'])
+    projects_scan()
     quotas()
     avail = zones()
     imgs = images()
@@ -456,7 +533,7 @@ def run():
                 say('poll get status=%s body=%s' % (st, cap(b, 300)))
             time.sleep(10)
         if launched:
-            uuids, marker = serial_proof(zone)
+            uuids, marker = serial_proof(zone, 480 if driver_install else 330)
             say('PROOF_RESULT uuids=%s marker=%s' % (json.dumps(uuids), marker))
         else:
             say('GATE=NEVER_RUNNING last_state=%s' % state)
