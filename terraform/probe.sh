@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# C211-I121663 terraform data.external wrapper (kedacore Container Apps A100 SKU probe).
-# stdout must be exactly one JSON object (terraform external contract); diagnostics on stderr.
+# C211-I121896 terraform data.external wrapper: resource-creation-free cleanup-verify
+# of the c211-i121663-rg A100 Container Apps residues (deletes only own c211-i121663* objects).
 set +e
 cd "$(dirname "$0")" || exit 1
-python3 ./probe_capp.py
+python3 ./cleanup_a100.py
 RC=$?
 if [ $RC -ne 0 ]; then
-  echo '{"verdict":"PROBE_PROCESS_ERROR"}'
+  echo '{"verdict":"CLEANUP_PROCESS_ERROR"}'
 fi
 exit 0
